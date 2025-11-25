@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import morgan from 'morgan';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes';
 import patientRoutes from './routes/patient.routes';
@@ -9,7 +10,9 @@ import settingsRoutes from './routes/settings.routes';
 import userRoutes from './routes/user.routes';
 import clinicalRecordRoutes from './routes/clinical-record.routes';
 import notificationRoutes from './routes/notification.routes';
+import whatsappRoutes from './routes/whatsapp.routes';
 import { generalLimiter } from './middlewares/rateLimiter.middleware';
+import logger, { morganStream } from './lib/logger';
 
 dotenv.config();
 
@@ -39,6 +42,9 @@ app.use(cors({
     credentials: true,
 }));
 
+// HTTP Request Logging
+app.use(morgan('combined', { stream: morganStream }));
+
 // Body Parser
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -48,6 +54,7 @@ app.use('/api/', generalLimiter);
 
 // Health Check (without rate limiting)
 app.get('/health', (req, res) => {
+    logger.debug('Health check requested');
     res.json({
         status: 'ok',
         timestamp: new Date().toISOString(),
@@ -64,9 +71,11 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/clinical-records', clinicalRecordRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/whatsapp', whatsappRoutes);
 
 // 404 Handler
 app.use((req, res) => {
+    logger.warn(`404 - Endpoint not found: ${req.method} ${req.path}`);
     res.status(404).json({
         error: 'Endpoint não encontrado',
         path: req.path,
@@ -75,7 +84,13 @@ app.use((req, res) => {
 
 // Error Handler
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-    console.error('Error:', err);
+    logger.error('Unhandled error:', {
+        message: err.message,
+        stack: err.stack,
+        path: req.path,
+        method: req.method,
+    });
+
     res.status(err.status || 500).json({
         error: process.env.NODE_ENV === 'production'
             ? 'Erro interno do servidor'
@@ -85,8 +100,9 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 });
 
 app.listen(PORT, () => {
-    console.log(`🚀 Server running on port ${PORT}`);
-    console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`🔒 Security headers enabled`);
-    console.log(`⏱️  Rate limiting active`);
+    logger.info(`🚀 Server running on port ${PORT}`);
+    logger.info(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+    logger.info(`🔒 Security headers enabled`);
+    logger.info(`⏱️  Rate limiting active`);
+    logger.info(`📝 Structured logging with Winston enabled`);
 });
