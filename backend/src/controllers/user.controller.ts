@@ -1,11 +1,12 @@
 import { Request, Response } from 'express';
+import bcrypt from 'bcryptjs';
 import prisma from '../lib/prisma';
 
 export const getUsers = async (req: Request, res: Response) => {
     try {
         const users = await prisma.user.findMany();
         // Remove passwords from response
-        const safeUsers = users.map(user => {
+        const safeUsers = users.map((user) => {
             const { password, ...rest } = user;
             return rest;
         });
@@ -18,11 +19,15 @@ export const getUsers = async (req: Request, res: Response) => {
 export const createUser = async (req: Request, res: Response) => {
     try {
         const { name, email, password, clinicName, avatarUrl } = req.body;
+
+        // Hash password before saving
+        const hashedPassword = await bcrypt.hash(password, 10);
+
         const user = await prisma.user.create({
             data: {
                 name,
                 email,
-                password, // In a real app, hash this!
+                password: hashedPassword,
                 clinicName,
                 avatarUrl,
             },

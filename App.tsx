@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Search, 
-  LayoutDashboard, 
-  Users, 
-  Settings, 
-  Bell, 
-  Menu, 
-  X, 
+import {
+  Search,
+  LayoutDashboard,
+  Users,
+  Settings,
+  Bell,
+  Menu,
+  X,
   LogOut,
   Database,
   Activity,
@@ -20,6 +20,14 @@ import {
   ArrowRight,
   Eye
 } from 'lucide-react';
+import { useToast } from './hooks/useToast';
+import { useConfirm } from './hooks/useConfirm';
+import { useDebounce } from './hooks/useDebounce';
+import { ConfirmModal } from './components/ConfirmModal';
+import { SkeletonTable, SkeletonCard } from './components/LoadingSpinner';
+import { BarChart, LineChart, StatsCard, DonutChart } from './components/Charts';
+import { DarkModeToggleCompact } from './components/DarkModeToggle';
+import { DateRangeFilter, useDateRange } from './components/DateRangeFilter';
 import { PatientsTable } from './components/LeadsTable';
 import { StatCard } from './components/StatCard';
 import { StatusBadge } from './components/StatusBadge';
@@ -32,46 +40,66 @@ import { NotificationsPopover } from './components/NotificationsPopover';
 import { ProfileModal } from './components/ProfileModal';
 import { ScheduleModal } from './components/ScheduleModal';
 import { Opportunity, OpportunityStatus, Patient, User, Notification } from './types';
-import { 
-  searchPatientsByKeyword, 
-  getStoredOpportunities, 
-  mergeNewOpportunities, 
-  updateOpportunityStatus, 
-  getAllPatientsMock, 
+import {
+  searchPatientsByKeyword,
+  getStoredOpportunities,
+  getAllOpportunities,
+  mergeNewOpportunities,
+  updateOpportunityStatus,
+  getAllPatients,
   updateOpportunityNotes,
   getStoredUser,
   logoutUser,
-  getMockNotifications 
-} from './services/mockN8nService';
+  getMockNotifications,
+  deleteAllOpportunities
+} from './services/apiService';
 
 // --- Page Components ---
 
-const DashboardPage = ({ 
-  opportunities, 
+const DashboardPage = ({
+  opportunities,
   user,
-  totalDatabaseCount 
-}: { 
-  opportunities: Opportunity[], 
+  totalDatabaseCount,
+  loading
+}: {
+  opportunities: Opportunity[],
   user: User,
-  totalDatabaseCount: number
+  totalDatabaseCount: number,
+  loading?: boolean
 }) => {
-  const totalPipeline = opportunities.length;
-  const scheduled = opportunities.filter(o => o.status === OpportunityStatus.SCHEDULED).length;
-  const pending = opportunities.filter(o => o.status === OpportunityStatus.NEW || o.status === OpportunityStatus.SENT).length;
-  
+  const { dateRange, setDateRange, isInRange } = useDateRange('month');
+
+  // Filter opportunities by date range
+  const filteredOpportunities = opportunities.filter(o => isInRange(o.createdAt));
+
+  const totalPipeline = filteredOpportunities.length;
+  const scheduled = filteredOpportunities.filter(o => o.status === OpportunityStatus.SCHEDULED).length;
+  const pending = filteredOpportunities.filter(o => o.status === OpportunityStatus.NEW || o.status === OpportunityStatus.SENT).length;
+
   // Cálculo da taxa de ativação (Quantos % da base estão sendo trabalhados)
-  const activationRate = totalDatabaseCount > 0 
-    ? Math.round((totalPipeline / totalDatabaseCount) * 100) 
+  const activationRate = totalDatabaseCount > 0
+    ? Math.round((totalPipeline / totalDatabaseCount) * 100)
     : 0;
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div>
-        <h2 className="text-2xl font-bold text-gray-800">Visão Geral</h2>
-        <p className="text-gray-500">Resumo da base de pacientes e performance de reativação de <span className="font-semibold text-indigo-600">{user.name}</span>.</p>
+      <div className="flex justify-between items-start">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Visão Geral</h2>
+          <p className="text-gray-500 dark:text-gray-400">Resumo da base de pacientes e performance de reativação de <span className="font-semibold text-indigo-600 dark:text-indigo-400">{user.name}</span>.</p>
+        </div>
+        <DateRangeFilter value={dateRange} onChange={setDateRange} />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-6">
+      {loading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-6">
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-6">
         <StatCard 
           label="Total na Base (DB)" 
           value={totalDatabaseCount} 
@@ -94,29 +122,113 @@ const DashboardPage = ({
           trendValue="+12%"
           colorClass="bg-green-50 border-green-100"
         />
-        <StatCard 
-          label="Pendentes de Resposta" 
-          value={pending} 
-          icon={Bell} 
+        <StatCard
+          label="Pendentes de Resposta"
+          value={pending}
+          icon={Bell}
           colorClass="bg-orange-50 border-orange-100"
+        />
+        </div>
+      )}
+
+      {/* Charts and Analytics */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Conversion Funnel */}
+        <DonutChart
+          title="Distribuição por Status"
+          data={[
+            { label: 'Novos', value: filteredOpportunities.filter(o => o.status === OpportunityStatus.NEW).length, color: '#3b82f6' },
+            { label: 'Contatados', value: filteredOpportunities.filter(o => o.status === OpportunityStatus.SENT).length, color: '#8b5cf6' },
+            { label: 'Responderam', value: filteredOpportunities.filter(o => o.status === OpportunityStatus.RESPONDED).length, color: '#f59e0b' },
+            { label: 'Agendados', value: filteredOpportunities.filter(o => o.status === OpportunityStatus.SCHEDULED).length, color: '#10b981' },
+            { label: 'Arquivados', value: filteredOpportunities.filter(o => o.status === OpportunityStatus.ARCHIVED).length, color: '#6b7280' },
+          ].filter(d => d.value > 0)}
+          centerText={totalPipeline.toString()}
+          centerSubtext="Total"
+        />
+
+        {/* Treatment Types */}
+        <BarChart
+          title="Tratamentos Mais Buscados"
+          data={(() => {
+            const treatments: Record<string, number> = {};
+            filteredOpportunities.forEach(opp => {
+              const keyword = opp.keywordFound.toLowerCase();
+              treatments[keyword] = (treatments[keyword] || 0) + 1;
+            });
+            return Object.entries(treatments)
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, 5)
+              .map(([label, value]) => ({
+                label: label.charAt(0).toUpperCase() + label.slice(1),
+                value,
+                color: 'bg-indigo-500'
+              }));
+          })()}
+          height={180}
         />
       </div>
 
-      <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-        <h3 className="font-semibold text-gray-800 mb-4">Atividade Recente no Pipeline</h3>
+      {/* Stats Cards with Mini Charts */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatsCard
+          title="Taxa de Conversão"
+          value={scheduled > 0 ? Math.round((scheduled / totalPipeline) * 100) : 0}
+          subtitle={`${scheduled} de ${totalPipeline} agendados`}
+          trend="up"
+          trendValue="+5.2%"
+          data={[12, 19, 15, 22, 18, 25, scheduled]}
+          color="green"
+        />
+        <StatsCard
+          title="Taxa de Resposta"
+          value={
+            filteredOpportunities.filter(o => o.status === OpportunityStatus.RESPONDED || o.status === OpportunityStatus.SCHEDULED).length > 0
+              ? Math.round((filteredOpportunities.filter(o => o.status === OpportunityStatus.RESPONDED || o.status === OpportunityStatus.SCHEDULED).length / totalPipeline) * 100)
+              : 0
+          }
+          subtitle="Pacientes que responderam"
+          trend="up"
+          trendValue="+8.1%"
+          data={[15, 18, 22, 19, 25, 28, 30]}
+          color="indigo"
+        />
+        <StatsCard
+          title="Tempo Médio"
+          value={3}
+          subtitle="Dias até agendamento"
+          trend="down"
+          trendValue="-1.2d"
+          data={[5, 4.5, 4, 3.8, 3.5, 3.2, 3]}
+          color="green"
+        />
+        <StatsCard
+          title={`Novos no Período`}
+          value={filteredOpportunities.length}
+          subtitle={`${dateRange.preset === 'today' ? 'Hoje' : dateRange.preset === 'week' ? 'Últimos 7 dias' : dateRange.preset === 'month' ? 'Últimos 30 dias' : 'Período selecionado'}`}
+          trend="up"
+          trendValue="+12"
+          data={[8, 12, 10, 15, 13, 18, 20]}
+          color="indigo"
+        />
+      </div>
+
+      {/* Recent Activity */}
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+        <h3 className="font-semibold text-gray-800 dark:text-white mb-4">Atividade Recente no Período</h3>
         <div className="space-y-4">
-          {opportunities.slice(0, 3).map((opp, i) => (
-            <div key={i} className="flex items-center p-3 hover:bg-gray-50 rounded-lg transition-colors border border-transparent hover:border-gray-100">
+          {filteredOpportunities.slice(0, 5).map((opp, i) => (
+            <div key={i} className="flex items-center p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors border border-transparent hover:border-gray-100 dark:hover:border-gray-600">
               <div className="w-2 h-2 bg-indigo-500 rounded-full mr-3"></div>
               <div className="flex-1">
-                <p className="text-sm font-medium text-gray-900">Paciente <span className="font-bold">{opp.name}</span></p>
-                <p className="text-xs text-gray-500">Status atual: {opp.status} • Motivo: {opp.keywordFound}</p>
+                <p className="text-sm font-medium text-gray-900 dark:text-white">Paciente <span className="font-bold">{opp.name}</span></p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Status atual: {opp.status} • Motivo: {opp.keywordFound}</p>
               </div>
-              <span className="text-xs text-gray-400">{new Date(opp.createdAt).toLocaleDateString()}</span>
+              <span className="text-xs text-gray-400 dark:text-gray-500">{new Date(opp.createdAt).toLocaleDateString()}</span>
             </div>
           ))}
-          {opportunities.length === 0 && (
-            <p className="text-sm text-gray-400 italic">Nenhuma atividade registrada recentemente.</p>
+          {filteredOpportunities.length === 0 && (
+            <p className="text-sm text-gray-400 dark:text-gray-500 italic">Nenhuma atividade registrada no período selecionado.</p>
           )}
         </div>
       </div>
@@ -124,16 +236,20 @@ const DashboardPage = ({
   );
 };
 
-const SearchPage = ({ 
-  opportunities, 
-  setOpportunities, 
+const SearchPage = ({
+  opportunities,
+  setOpportunities,
   onUpdateStatus,
-  onViewDetails
-}: { 
-  opportunities: Opportunity[], 
+  onViewDetails,
+  onClearAll,
+  toast
+}: {
+  opportunities: Opportunity[],
   setOpportunities: (o: Opportunity[]) => void,
   onUpdateStatus: (id: string, s: OpportunityStatus) => void,
-  onViewDetails: (o: Opportunity) => void
+  onViewDetails: (o: Opportunity) => void,
+  onClearAll: () => void,
+  toast: any
 }) => {
   const [query, setQuery] = useState('');
   const [limit, setLimit] = useState(5);
@@ -148,8 +264,9 @@ const SearchPage = ({
       const merged = mergeNewOpportunities(opportunities, newOpps);
       setOpportunities(merged);
       setQuery('');
+      toast.success(`${newOpps.length} paciente(s) encontrado(s)!`);
     } catch (error) {
-      alert("Erro ao buscar. Verifique a conexão.");
+      toast.error("Erro ao buscar. Verifique a conexão.");
     } finally {
       setLoading(false);
     }
@@ -206,13 +323,23 @@ const SearchPage = ({
       <div>
         <div className="flex justify-between items-center mb-3">
           <h3 className="font-semibold text-gray-800">Pacientes Selecionados para Reativação</h3>
-          {opportunities.length > 0 && (
-            <ExportMenu 
-              data={opportunities} 
-              filename="pacientes_allo_oral" 
-              pdfTitle="Relatório de Pacientes - Allo Oral Clinic"
-            />
-          )}
+          <div className="flex gap-2">
+            {opportunities.length > 0 && (
+              <>
+                <button
+                  onClick={onClearAll}
+                  className="px-4 py-2 text-sm font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors"
+                >
+                  Limpar Base
+                </button>
+                <ExportMenu
+                  data={opportunities}
+                  filename="pacientes_allo_oral"
+                  pdfTitle="Relatório de Pacientes - Allo Oral Clinic"
+                />
+              </>
+            )}
+          </div>
         </div>
         <PatientsTable items={opportunities} onUpdateStatus={onUpdateStatus} onViewDetails={onViewDetails} />
       </div>
@@ -220,14 +347,16 @@ const SearchPage = ({
   );
 };
 
-const PipelinePage = ({ 
-  opportunities, 
-  onUpdateStatus, 
-  onViewDetails
-}: { 
-  opportunities: Opportunity[], 
+const PipelinePage = ({
+  opportunities,
+  onUpdateStatus,
+  onViewDetails,
+  onClearAll
+}: {
+  opportunities: Opportunity[],
   onUpdateStatus: (id: string, s: OpportunityStatus) => void,
-  onViewDetails: (o: Opportunity) => void
+  onViewDetails: (o: Opportunity) => void,
+  onClearAll: () => void
 }) => {
   return (
     <div className="space-y-6 h-full flex flex-col animate-fade-in">
@@ -236,11 +365,23 @@ const PipelinePage = ({
           <h2 className="text-2xl font-bold text-gray-800">Pipeline de Reativação</h2>
           <p className="text-gray-500">Gerencie visualmente o fluxo de contato com os pacientes.</p>
         </div>
-        <ExportMenu 
-          data={opportunities} 
-          filename="pipeline_allo_oral" 
-          pdfTitle="Pipeline de Reativação - Allo Oral Clinic"
-        />
+        <div className="flex gap-2">
+          {opportunities.length > 0 && (
+            <>
+              <button
+                onClick={onClearAll}
+                className="px-4 py-2 text-sm font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors"
+              >
+                Limpar Pipeline
+              </button>
+              <ExportMenu
+                data={opportunities}
+                filename="pipeline_allo_oral"
+                pdfTitle="Pipeline de Reativação - Allo Oral Clinic"
+              />
+            </>
+          )}
+        </div>
       </div>
       <div className="flex-1 overflow-hidden">
         <KanbanBoard opportunities={opportunities} onUpdateStatus={onUpdateStatus} onViewDetails={onViewDetails} />
@@ -249,27 +390,30 @@ const PipelinePage = ({
   );
 };
 
-const DatabasePage = ({ 
-  patients, 
+const DatabasePage = ({
+  patients,
   loading,
   opportunities,
-  onAddToPipeline 
-}: { 
-  patients: Patient[], 
-  loading: boolean, 
+  onAddToPipeline
+}: {
+  patients: Patient[],
+  loading: boolean,
   opportunities: Opportunity[],
-  onAddToPipeline: (patient: Patient) => void 
+  onAddToPipeline: (patient: Patient) => void
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterTag, setFilterTag] = useState('all');
 
+  // Debounce search term to optimize performance
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
+
   // Extrair todas as tags únicas para o filtro
   const allTags = Array.from(new Set(patients.flatMap(p => p.history || []))) as string[];
 
-  // Filtragem
+  // Filtragem otimizada com debounce
   const filteredPatients = patients.filter(p => {
-    const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          p.phone.includes(searchTerm);
+    const matchesSearch = p.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+                          p.phone.includes(debouncedSearchTerm);
     const matchesTag = filterTag === 'all' || p.history?.includes(filterTag);
     return matchesSearch && matchesTag;
   });
@@ -302,18 +446,19 @@ const DatabasePage = ({
       </div>
 
       {/* Filtros Avançados */}
-      <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-2.5 text-gray-400 h-5 w-5" />
-          <input
-            type="text"
-            placeholder="Buscar por nome ou telefone..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg w-full focus:ring-indigo-500 focus:border-indigo-500 bg-white text-gray-900"
-          />
-        </div>
-        <div className="relative w-full sm:w-64">
+      <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+        <div className="flex flex-col sm:flex-row gap-4 mb-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-2.5 text-gray-400 h-5 w-5" />
+            <input
+              type="text"
+              placeholder="Buscar por nome ou telefone..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg w-full focus:ring-indigo-500 focus:border-indigo-500 bg-white text-gray-900"
+            />
+          </div>
+          <div className="relative w-full sm:w-64">
             <Filter className="absolute left-3 top-2.5 text-gray-400 h-5 w-5" />
             <select
               value={filterTag}
@@ -325,16 +470,30 @@ const DatabasePage = ({
                 <option key={tag} value={tag}>{tag.charAt(0).toUpperCase() + tag.slice(1)}</option>
               ))}
             </select>
+          </div>
+        </div>
+        {/* Contador de Resultados */}
+        <div className="text-sm text-gray-600">
+          Exibindo <span className="font-semibold text-indigo-600">{filteredPatients.length}</span> de{' '}
+          <span className="font-semibold">{patients.length}</span> pacientes
+          {(searchTerm || filterTag !== 'all') && (
+            <button
+              onClick={() => {
+                setSearchTerm('');
+                setFilterTag('all');
+              }}
+              className="ml-3 text-indigo-600 hover:text-indigo-700 font-medium"
+            >
+              Limpar filtros
+            </button>
+          )}
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-        {loading ? (
-          <div className="p-8 text-center text-gray-500 flex flex-col items-center">
-             <RefreshCw className="w-8 h-8 animate-spin text-indigo-500 mb-2" />
-             Carregando base de dados...
-          </div>
-        ) : (
+      {loading ? (
+        <SkeletonTable rows={8} />
+      ) : (
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -404,8 +563,8 @@ const DatabasePage = ({
               </tbody>
             </table>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -415,22 +574,24 @@ const DatabasePage = ({
 type Page = 'dashboard' | 'search' | 'pipeline' | 'database';
 
 const App = () => {
+  const toast = useToast();
+  const { confirm, confirmState, closeConfirm } = useConfirm();
   const [user, setUser] = useState<User | null>(null);
   const [page, setPage] = useState<Page>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  
+
   // Modais State
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [pendingScheduleId, setPendingScheduleId] = useState<string | null>(null);
-  
+
   // Data State
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [selectedOpportunity, setSelectedOpportunity] = useState<Opportunity | null>(null);
   const [databasePatients, setDatabasePatients] = useState<Patient[]>([]);
   const [databaseLoading, setDatabaseLoading] = useState(true);
-  
+
   // Notifications State
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
@@ -439,25 +600,61 @@ const App = () => {
     const storedUser = getStoredUser();
     if (storedUser) {
       setUser(storedUser);
+      loadData();
     }
-    setOpportunities(getStoredOpportunities());
-    getMockNotifications().then(setNotifications);
-    
-    // Fetch Database Patients on Load (Shared)
-    getAllPatientsMock().then((data) => {
-      setDatabasePatients(data);
-      setDatabaseLoading(false);
-    });
-
   }, []);
+
+  const loadData = async () => {
+    try {
+      // Load opportunities from backend
+      const opps = await getAllOpportunities();
+      setOpportunities(opps);
+
+      // Load patients from backend
+      const patients = await getAllPatients();
+      setDatabasePatients(patients);
+      setDatabaseLoading(false);
+
+      // Load notifications
+      const notifs = await getMockNotifications();
+      setNotifications(notifs);
+    } catch (error) {
+      console.error('Error loading data:', error);
+      // Fallback to local storage
+      setOpportunities(getStoredOpportunities());
+      setDatabaseLoading(false);
+    }
+  };
 
   const handleLogin = (loggedInUser: User) => {
     setUser(loggedInUser);
+    loadData();
   };
 
   const handleLogout = () => {
     logoutUser();
     setUser(null);
+  };
+
+  const handleClearAll = async () => {
+    const confirmed = await confirm({
+      title: 'Limpar Base Prospectada',
+      message: 'Tem certeza que deseja limpar toda a base de pacientes prospectados? Esta ação não pode ser desfeita.',
+      confirmText: 'Sim, Limpar Tudo',
+      cancelText: 'Cancelar',
+      type: 'danger',
+    });
+
+    if (confirmed) {
+      try {
+        await deleteAllOpportunities();
+        setOpportunities([]);
+        toast.success('Base de pacientes prospectados limpa com sucesso!');
+      } catch (error) {
+        console.error('Error clearing opportunities:', error);
+        toast.error('Erro ao limpar base. Tente novamente.');
+      }
+    }
   };
 
   const handleStatusUpdate = async (id: string, status: OpportunityStatus) => {
@@ -505,9 +702,10 @@ const App = () => {
     setOpportunities(prev => prev.map(o => o.id === id ? { ...o, notes } : o));
     try {
       await updateOpportunityNotes(id, notes);
+      toast.success('Nota salva com sucesso!');
     } catch {
       setOpportunities(original);
-      alert("Erro ao salvar nota");
+      toast.error("Erro ao salvar nota");
     }
   };
   
@@ -516,7 +714,7 @@ const App = () => {
     // Verifica se já existe
     const exists = opportunities.some(o => o.patientId === patient.id);
     if (exists) {
-      alert("Este paciente já está em processo de reativação no Pipeline.");
+      toast.warning("Este paciente já está em processo de reativação no Pipeline.");
       return;
     }
 
@@ -533,10 +731,7 @@ const App = () => {
 
     const merged = mergeNewOpportunities(opportunities, [newOpp]);
     setOpportunities(merged);
-    
-    // Feedback visual simples
-    // Idealmente, um toast, mas alert resolve por hora
-    // alert(`Paciente ${patient.name} adicionado ao Pipeline!`);
+    toast.success(`Paciente ${patient.name} adicionado ao Pipeline!`);
   };
 
   const toggleNotification = (id: string) => {
@@ -655,26 +850,30 @@ const App = () => {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col lg:pl-64 transition-all duration-300 overflow-hidden h-screen">
-        <header className="h-16 bg-white border-b border-gray-200 sticky top-0 z-10 px-4 sm:px-8 flex items-center justify-between shadow-sm shrink-0">
-          <button onClick={() => setSidebarOpen(true)} className="lg:hidden text-gray-500">
+        <header className="h-16 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 sticky top-0 z-10 px-4 sm:px-8 flex items-center justify-between shadow-sm shrink-0 transition-colors">
+          <button onClick={() => setSidebarOpen(true)} className="lg:hidden text-gray-500 dark:text-gray-400">
             <Menu size={24} />
           </button>
-          <div className="flex-1"></div> 
-          <div className="flex items-center space-x-4 relative">
+          <div className="flex-1"></div>
+          <div className="flex items-center space-x-2 relative">
+            {/* Dark Mode Toggle */}
+            <DarkModeToggleCompact />
+
+            {/* Notifications */}
             <div className="relative">
-              <button 
+              <button
                 onClick={() => setIsNotifOpen(!isNotifOpen)}
-                className="p-2 text-gray-400 hover:text-indigo-600 transition-colors relative rounded-full hover:bg-gray-100"
+                className="p-2 text-gray-400 dark:text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors relative rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
               >
                 <Bell size={20} />
                 {unreadNotifications > 0 && (
-                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white"></span>
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white dark:ring-gray-900"></span>
                 )}
               </button>
-              
-              <NotificationsPopover 
-                isOpen={isNotifOpen} 
-                onClose={() => setIsNotifOpen(false)} 
+
+              <NotificationsPopover
+                isOpen={isNotifOpen}
+                onClose={() => setIsNotifOpen(false)}
                 notifications={notifications}
                 onMarkAsRead={toggleNotification}
               />
@@ -685,28 +884,32 @@ const App = () => {
         <main className="flex-1 p-4 sm:p-8 overflow-hidden max-w-7xl mx-auto w-full">
           {page === 'dashboard' && (
             <div className="h-full overflow-y-auto">
-              <DashboardPage 
-                opportunities={opportunities} 
-                user={user} 
-                totalDatabaseCount={databasePatients.length} 
+              <DashboardPage
+                opportunities={opportunities}
+                user={user}
+                totalDatabaseCount={databasePatients.length}
+                loading={databaseLoading}
               />
             </div>
           )}
           {page === 'search' && (
             <div className="h-full overflow-y-auto">
-              <SearchPage 
-                opportunities={opportunities} 
-                setOpportunities={setOpportunities} 
+              <SearchPage
+                opportunities={opportunities}
+                setOpportunities={setOpportunities}
                 onUpdateStatus={handleStatusUpdate}
                 onViewDetails={setSelectedOpportunity}
+                onClearAll={handleClearAll}
+                toast={toast}
               />
             </div>
           )}
           {page === 'pipeline' && (
-             <PipelinePage 
-                opportunities={opportunities} 
+             <PipelinePage
+                opportunities={opportunities}
                 onUpdateStatus={handleStatusUpdate}
                 onViewDetails={setSelectedOpportunity}
+                onClearAll={handleClearAll}
              />
           )}
           {page === 'database' && (
@@ -737,11 +940,23 @@ const App = () => {
         onConfirm={handleScheduleConfirm} 
       />
       
-      <PatientDetailsModal 
-        isOpen={!!selectedOpportunity} 
-        opportunity={selectedOpportunity} 
-        onClose={() => setSelectedOpportunity(null)} 
+      <PatientDetailsModal
+        isOpen={!!selectedOpportunity}
+        opportunity={selectedOpportunity}
+        onClose={() => setSelectedOpportunity(null)}
         onSaveNotes={handleSaveNotes}
+      />
+
+      <ConfirmModal
+        isOpen={confirmState.isOpen}
+        onClose={closeConfirm}
+        onConfirm={confirmState.onConfirm}
+        title={confirmState.title}
+        message={confirmState.message}
+        confirmText={confirmState.confirmText}
+        cancelText={confirmState.cancelText}
+        type={confirmState.type}
+        loading={confirmState.loading}
       />
     </div>
   );

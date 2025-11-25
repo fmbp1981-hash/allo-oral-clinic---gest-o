@@ -1,12 +1,12 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
-interface AuthRequest extends Request {
+export interface AuthRequest extends Request {
     user?: { userId: string };
 }
 
 export const authenticate = (req: AuthRequest, res: Response, next: NextFunction) => {
-    const authHeader = req.headers.authorization;
+    const authHeader = req.headers['authorization'];
 
     if (!authHeader) {
         return res.status(401).json({ error: 'No token provided' });
