@@ -1,15 +1,25 @@
 import { Request, Response } from 'express';
-import prisma from '../lib/prisma';
+import supabase from '../lib/supabase';
+import logger from '../lib/logger';
 
 export const getOpportunities = async (req: Request, res: Response) => {
     try {
-        const opportunities = await prisma.opportunity.findMany({
-            include: {
-                patient: true,
-            },
-        });
-        res.json(opportunities);
-    } catch (error) {
+        const { data: opportunities, error } = await supabase
+            .from('opportunities')
+            .select(`
+                *,
+                patient:patients(*)
+            `)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            logger.error('Error fetching opportunities:', error);
+            return res.status(500).json({ error: 'Error fetching opportunities' });
+        }
+
+        res.json(opportunities || []);
+    } catch (error: any) {
+        logger.error('Error fetching opportunities:', error);
         res.status(500).json({ error: 'Error fetching opportunities' });
     }
 };
@@ -17,17 +27,28 @@ export const getOpportunities = async (req: Request, res: Response) => {
 export const createOpportunity = async (req: Request, res: Response) => {
     try {
         const { patientId, name, phone, keywordFound, status } = req.body;
-        const opportunity = await prisma.opportunity.create({
-            data: {
-                patientId,
+
+        const { data: opportunity, error } = await supabase
+            .from('opportunities')
+            .insert({
+                patient_id: patientId,
                 name,
                 phone,
-                keywordFound,
-                status,
-            },
-        });
+                keyword_found: keywordFound,
+                status: status || 'NEW',
+            })
+            .select()
+            .single();
+
+        if (error || !opportunity) {
+            logger.error('Error creating opportunity:', error);
+            return res.status(500).json({ error: 'Error creating opportunity' });
+        }
+
+        logger.info('Opportunity created', { opportunityId: opportunity.id });
         res.json(opportunity);
-    } catch (error) {
+    } catch (error: any) {
+        logger.error('Error creating opportunity:', error);
         res.status(500).json({ error: 'Error creating opportunity' });
     }
 };
@@ -36,21 +57,25 @@ export const searchOpportunities = async (req: Request, res: Response) => {
     try {
         const { keyword, limit = 10 } = req.body;
 
+        logger.info('Searching opportunities', { keyword, limit });
+
         // Search patients that match the keyword in their history
-        const patients = await prisma.patient.findMany({
-            where: {
-                history: {
-                    contains: keyword.toLowerCase(),
-                },
-            },
-            take: parseInt(limit as string),
-            include: {
-                clinicalRecords: true,
-            },
-        });
+        const { data: patients, error } = await supabase
+            .from('patients')
+            .select(`
+                *,
+                clinical_records:clinical_records(*)
+            `)
+            .ilike('history', `%${keyword.toLowerCase()}%`)
+            .limit(parseInt(limit as string));
+
+        if (error) {
+            logger.error('Search error:', error);
+            return res.status(500).json({ error: 'Error searching opportunities' });
+        }
 
         // Create opportunities from found patients
-        const opportunities = patients.map(patient => ({
+        const opportunities = (patients || []).map(patient => ({
             id: `opp_${Date.now()}_${patient.id}`,
             patientId: patient.id,
             name: patient.name,
@@ -58,12 +83,13 @@ export const searchOpportunities = async (req: Request, res: Response) => {
             keywordFound: keyword,
             status: 'NEW',
             createdAt: new Date().toISOString(),
-            clinicalRecords: patient.clinicalRecords,
+            clinicalRecords: patient.clinical_records || [],
         }));
 
+        logger.info('Search completed', { found: opportunities.length });
         res.json(opportunities);
-    } catch (error) {
-        console.error('Search error:', error);
+    } catch (error: any) {
+        logger.error('Search error:', error);
         res.status(500).json({ error: 'Error searching opportunities' });
     }
 };
@@ -73,18 +99,31 @@ export const updateOpportunityStatus = async (req: Request, res: Response) => {
         const { id } = req.params;
         const { status, scheduledDate } = req.body;
 
-        const opportunity = await prisma.opportunity.update({
-            where: { id },
-            data: {
-                status,
-                lastContact: new Date(),
-                ...(scheduledDate && { scheduledDate: new Date(scheduledDate) }),
-            },
-        });
+        const updateData: any = {
+            status,
+            last_contact: new Date().toISOString(),
+        };
 
+        if (scheduledDate) {
+            updateData.scheduled_date = scheduledDate;
+        }
+
+        const { data: opportunity, error } = await supabase
+            .from('opportunities')
+            .update(updateData)
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) {
+            logger.error('Update status error:', error);
+            return res.status(500).json({ error: 'Error updating opportunity status' });
+        }
+
+        logger.info('Opportunity status updated', { opportunityId: id, status });
         res.json(opportunity);
-    } catch (error) {
-        console.error('Update status error:', error);
+    } catch (error: any) {
+        logger.error('Update status error:', error);
         res.status(500).json({ error: 'Error updating opportunity status' });
     }
 };
@@ -94,14 +133,22 @@ export const updateOpportunityNotes = async (req: Request, res: Response) => {
         const { id } = req.params;
         const { notes } = req.body;
 
-        const opportunity = await prisma.opportunity.update({
-            where: { id },
-            data: { notes },
-        });
+        const { data: opportunity, error } = await supabase
+            .from('opportunities')
+            .update({ notes })
+            .eq('id', id)
+            .select()
+            .single();
 
+        if (error) {
+            logger.error('Update notes error:', error);
+            return res.status(500).json({ error: 'Error updating opportunity notes' });
+        }
+
+        logger.info('Opportunity notes updated', { opportunityId: id });
         res.json(opportunity);
-    } catch (error) {
-        console.error('Update notes error:', error);
+    } catch (error: any) {
+        logger.error('Update notes error:', error);
         res.status(500).json({ error: 'Error updating opportunity notes' });
     }
 };
@@ -110,24 +157,40 @@ export const deleteOpportunity = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
 
-        await prisma.opportunity.delete({
-            where: { id },
-        });
+        const { error } = await supabase
+            .from('opportunities')
+            .delete()
+            .eq('id', id);
 
+        if (error) {
+            logger.error('Delete error:', error);
+            return res.status(500).json({ error: 'Error deleting opportunity' });
+        }
+
+        logger.info('Opportunity deleted', { opportunityId: id });
         res.json({ message: 'Opportunity deleted successfully' });
-    } catch (error) {
-        console.error('Delete error:', error);
+    } catch (error: any) {
+        logger.error('Delete error:', error);
         res.status(500).json({ error: 'Error deleting opportunity' });
     }
 };
 
 export const deleteAllOpportunities = async (req: Request, res: Response) => {
     try {
-        await prisma.opportunity.deleteMany({});
+        const { error } = await supabase
+            .from('opportunities')
+            .delete()
+            .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all (workaround for Supabase)
 
+        if (error) {
+            logger.error('Delete all error:', error);
+            return res.status(500).json({ error: 'Error deleting all opportunities' });
+        }
+
+        logger.info('All opportunities deleted');
         res.json({ message: 'All opportunities deleted successfully' });
-    } catch (error) {
-        console.error('Delete all error:', error);
+    } catch (error: any) {
+        logger.error('Delete all error:', error);
         res.status(500).json({ error: 'Error deleting all opportunities' });
     }
 };

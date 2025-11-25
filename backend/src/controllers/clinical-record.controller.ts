@@ -1,23 +1,34 @@
 import { Request, Response } from 'express';
-import prisma from '../lib/prisma';
+import supabase from '../lib/supabase';
+import logger from '../lib/logger';
 
 export const getClinicalRecords = async (req: Request, res: Response) => {
     try {
         const { patientId } = req.query;
-        const where = patientId ? { patientId: String(patientId) } : {};
 
-        const records = await prisma.clinicalRecord.findMany({
-            where,
-            include: {
-                patient: true,
-                opportunity: true,
-            },
-            orderBy: {
-                date: 'desc',
-            },
-        });
-        res.json(records);
-    } catch (error) {
+        let query = supabase
+            .from('clinical_records')
+            .select(`
+                *,
+                patient:patients(*),
+                opportunity:opportunities(*)
+            `)
+            .order('date', { ascending: false });
+
+        if (patientId) {
+            query = query.eq('patient_id', String(patientId));
+        }
+
+        const { data: records, error } = await query;
+
+        if (error) {
+            logger.error('Error fetching clinical records:', error);
+            return res.status(500).json({ error: 'Error fetching clinical records' });
+        }
+
+        res.json(records || []);
+    } catch (error: any) {
+        logger.error('Error fetching clinical records:', error);
         res.status(500).json({ error: 'Error fetching clinical records' });
     }
 };
@@ -25,17 +36,28 @@ export const getClinicalRecords = async (req: Request, res: Response) => {
 export const createClinicalRecord = async (req: Request, res: Response) => {
     try {
         const { date, description, type, patientId, opportunityId } = req.body;
-        const record = await prisma.clinicalRecord.create({
-            data: {
-                date: new Date(date),
+
+        const { data: record, error } = await supabase
+            .from('clinical_records')
+            .insert({
+                date: new Date(date).toISOString(),
                 description,
                 type,
-                patientId,
-                opportunityId,
-            },
-        });
+                patient_id: patientId,
+                opportunity_id: opportunityId,
+            })
+            .select()
+            .single();
+
+        if (error || !record) {
+            logger.error('Error creating clinical record:', error);
+            return res.status(500).json({ error: 'Error creating clinical record' });
+        }
+
+        logger.info('Clinical record created', { recordId: record.id });
         res.json(record);
-    } catch (error) {
+    } catch (error: any) {
+        logger.error('Error creating clinical record:', error);
         res.status(500).json({ error: 'Error creating clinical record' });
     }
 };
@@ -44,16 +66,28 @@ export const updateClinicalRecord = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
         const { date, description, type } = req.body;
-        const record = await prisma.clinicalRecord.update({
-            where: { id },
-            data: {
-                date: date ? new Date(date) : undefined,
-                description,
-                type,
-            },
-        });
+
+        const updateData: any = {};
+        if (date !== undefined) updateData.date = new Date(date).toISOString();
+        if (description !== undefined) updateData.description = description;
+        if (type !== undefined) updateData.type = type;
+
+        const { data: record, error } = await supabase
+            .from('clinical_records')
+            .update(updateData)
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) {
+            logger.error('Error updating clinical record:', error);
+            return res.status(500).json({ error: 'Error updating clinical record' });
+        }
+
+        logger.info('Clinical record updated', { recordId: id });
         res.json(record);
-    } catch (error) {
+    } catch (error: any) {
+        logger.error('Error updating clinical record:', error);
         res.status(500).json({ error: 'Error updating clinical record' });
     }
 };
@@ -61,11 +95,21 @@ export const updateClinicalRecord = async (req: Request, res: Response) => {
 export const deleteClinicalRecord = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        await prisma.clinicalRecord.delete({
-            where: { id },
-        });
+
+        const { error } = await supabase
+            .from('clinical_records')
+            .delete()
+            .eq('id', id);
+
+        if (error) {
+            logger.error('Error deleting clinical record:', error);
+            return res.status(500).json({ error: 'Error deleting clinical record' });
+        }
+
+        logger.info('Clinical record deleted', { recordId: id });
         res.json({ message: 'Clinical record deleted' });
-    } catch (error) {
+    } catch (error: any) {
+        logger.error('Error deleting clinical record:', error);
         res.status(500).json({ error: 'Error deleting clinical record' });
     }
 };

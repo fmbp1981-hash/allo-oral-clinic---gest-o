@@ -5,7 +5,7 @@
 
 import { Request, Response } from 'express';
 import whatsappService from '../services/whatsapp.service.v2';
-import prisma from '../lib/prisma';
+import supabase from '../lib/supabase';
 import logger from '../lib/logger';
 
 /**
@@ -70,14 +70,17 @@ export const sendOpportunityMessage = async (req: Request, res: Response) => {
     const { customTemplate } = req.body;
 
     // Get opportunity from database
-    const opportunity = await prisma.opportunity.findUnique({
-      where: { id },
-      include: {
-        patient: true,
-      },
-    });
+    const { data: opportunity, error: fetchError } = await supabase
+      .from('opportunities')
+      .select(`
+        *,
+        patient:patients(*)
+      `)
+      .eq('id', id)
+      .single();
 
-    if (!opportunity) {
+    if (fetchError || !opportunity) {
+      logger.warn('Opportunity not found', { opportunityId: id });
       return res.status(404).json({ error: 'Opportunity not found' });
     }
 
@@ -92,18 +95,22 @@ export const sendOpportunityMessage = async (req: Request, res: Response) => {
     const result = await whatsappService.sendOpportunityMessage(
       opportunity.phone,
       opportunity.name,
-      opportunity.keywordFound,
+      opportunity.keyword_found,
       customTemplate
     );
 
     // Update opportunity status to SENT
-    await prisma.opportunity.update({
-      where: { id },
-      data: {
+    const { error: updateError } = await supabase
+      .from('opportunities')
+      .update({
         status: 'SENT',
-        lastContact: new Date(),
-      },
-    });
+        last_contact: new Date().toISOString(),
+      })
+      .eq('id', id);
+
+    if (updateError) {
+      logger.error('Error updating opportunity status:', updateError);
+    }
 
     logger.info('Opportunity message sent', {
       opportunityId: id,
@@ -259,11 +266,13 @@ export const sendBulkMessages = async (req: Request, res: Response) => {
     // Rate limiting: Send one message every 1 second to avoid API limits
     for (const oppId of opportunityIds) {
       try {
-        const opportunity = await prisma.opportunity.findUnique({
-          where: { id: oppId },
-        });
+        const { data: opportunity, error: fetchError } = await supabase
+          .from('opportunities')
+          .select('*')
+          .eq('id', oppId)
+          .single();
 
-        if (!opportunity) {
+        if (fetchError || !opportunity) {
           errors.push({
             opportunityId: oppId,
             error: 'Opportunity not found',
@@ -274,18 +283,22 @@ export const sendBulkMessages = async (req: Request, res: Response) => {
         const result = await whatsappService.sendOpportunityMessage(
           opportunity.phone,
           opportunity.name,
-          opportunity.keywordFound,
+          opportunity.keyword_found,
           customTemplate
         );
 
         // Update status
-        await prisma.opportunity.update({
-          where: { id: oppId },
-          data: {
+        const { error: updateError } = await supabase
+          .from('opportunities')
+          .update({
             status: 'SENT',
-            lastContact: new Date(),
-          },
-        });
+            last_contact: new Date().toISOString(),
+          })
+          .eq('id', oppId);
+
+        if (updateError) {
+          logger.error('Error updating opportunity status:', updateError);
+        }
 
         results.push({
           opportunityId: oppId,
