@@ -102,49 +102,17 @@ CREATE TRIGGER update_opportunities_updated_at BEFORE UPDATE ON opportunities
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Row Level Security (RLS) Policies
--- Note: Adjust these based on your security requirements
-
-ALTER TABLE users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE patients ENABLE ROW LEVEL SECURITY;
-ALTER TABLE opportunities ENABLE ROW LEVEL SECURITY;
-ALTER TABLE clinical_records ENABLE ROW LEVEL SECURITY;
-ALTER TABLE app_settings ENABLE ROW LEVEL SECURITY;
-ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
-
--- Example policy: Allow authenticated users to read/write their own data
--- You can customize these policies based on your needs
-
--- Users can read their own data
-CREATE POLICY "Users can read own data" ON users
-    FOR SELECT
-    USING (auth.uid() = id::text);
-
--- Users can update their own data
-CREATE POLICY "Users can update own data" ON users
-    FOR UPDATE
-    USING (auth.uid() = id::text);
-
--- For now, allow all authenticated users to access all data
+-- Note: For development, we're allowing all operations
 -- IMPORTANT: Customize these policies for production!
-CREATE POLICY "Allow all authenticated users" ON patients
-    FOR ALL
-    USING (auth.role() = 'authenticated');
 
-CREATE POLICY "Allow all authenticated users" ON opportunities
-    FOR ALL
-    USING (auth.role() = 'authenticated');
-
-CREATE POLICY "Allow all authenticated users" ON clinical_records
-    FOR ALL
-    USING (auth.role() = 'authenticated');
-
-CREATE POLICY "Allow all authenticated users" ON app_settings
-    FOR ALL
-    USING (auth.role() = 'authenticated');
-
-CREATE POLICY "Allow all authenticated users" ON notifications
-    FOR ALL
-    USING (auth.role() = 'authenticated');
+-- Temporarily disable RLS for easier development
+-- Enable and configure properly before production deployment
+ALTER TABLE users DISABLE ROW LEVEL SECURITY;
+ALTER TABLE patients DISABLE ROW LEVEL SECURITY;
+ALTER TABLE opportunities DISABLE ROW LEVEL SECURITY;
+ALTER TABLE clinical_records DISABLE ROW LEVEL SECURITY;
+ALTER TABLE app_settings DISABLE ROW LEVEL SECURITY;
+ALTER TABLE notifications DISABLE ROW LEVEL SECURITY;
 
 -- Insert default settings (optional)
 INSERT INTO app_settings (webhook_url, message_template)
