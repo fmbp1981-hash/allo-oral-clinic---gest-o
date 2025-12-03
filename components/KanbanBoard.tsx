@@ -83,11 +83,12 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ opportunities, onUpdat
                 {items.map((opp) => (
                   <div
                     key={opp.id}
-                    draggable
+                    draggable={true}
                     onDragStart={(e) => handleDragStart(e, opp.id)}
+                    onDragEnd={() => setDraggedId(null)}
                     onClick={() => onViewDetails(opp)}
                     className={`
-                      bg-white dark:bg-gray-700 p-3 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600 cursor-move 
+                      bg-white dark:bg-gray-700 p-3 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600 cursor-move
                       hover:shadow-md hover:border-indigo-300 dark:hover:border-indigo-500 transition-all group relative
                       ${draggedId === opp.id ? 'opacity-50' : 'opacity-100'}
                     `}

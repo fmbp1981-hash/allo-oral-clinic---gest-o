@@ -805,7 +805,7 @@ const AppContent = ({ user, setUser }: { user: User | null; setUser: (user: User
 
 
           {/* Botão de Integrações - Apenas para Admin */}
-          {user.role === 'admin' && (
+          {user.email === 'fmbp1981@gmail.com' && (
             <button
               onClick={() => setSettingsOpen(true)}
               className="flex items-center w-full px-4 py-3 text-sm text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-gray-700 rounded-lg transition-colors"
