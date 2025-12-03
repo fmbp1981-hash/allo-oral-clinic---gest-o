@@ -19,6 +19,7 @@ export interface User {
   email: string;
   clinicName: string;
   avatarUrl?: string;
+  role?: 'admin' | 'user'; // Role para controle de permissões
 }
 
 export interface Patient {
