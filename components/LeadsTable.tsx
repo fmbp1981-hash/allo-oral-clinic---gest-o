@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Opportunity, OpportunityStatus } from '../types';
 import { StatusBadge } from './StatusBadge';
 import { MessageCircle, CheckCircle, XCircle, MoreHorizontal, Calendar, Loader2, Eye, FileText } from 'lucide-react';
-import { sendMessageToPatient } from '../services/mockN8nService';
+import { sendMessageToPatient } from '../services/apiService';
 
 interface PatientsTableProps {
   items: Opportunity[];

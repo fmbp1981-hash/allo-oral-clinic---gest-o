@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, User, Building2, Lock, Loader2 } from 'lucide-react';
 import { User as UserType } from '../types';
-import { updateUserProfile } from '../services/mockN8nService';
+import { updateUserProfile } from '../services/apiService';
 
 interface ProfileModalProps {
   isOpen: boolean;

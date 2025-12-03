@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Activity, Lock, Mail, Loader2, ArrowRight, User, Building2, ChevronLeft, CheckCircle } from 'lucide-react';
-import { loginUser, registerUser, resetPassword } from '../services/mockN8nService';
+import { loginUser, registerUser, resetPassword } from '../services/apiService';
 import { User as UserType } from '../types';
 
 interface LoginPageProps {

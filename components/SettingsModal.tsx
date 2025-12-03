@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, MessageCircle, Workflow, FileText, Smartphone } from 'lucide-react';
-import { getSettings, saveSettings } from '../services/mockN8nService';
+import { getSettings, saveSettings } from '../services/apiService';
 import { WhatsAppConfig, WhatsAppProvider, saveWhatsAppConfig } from '../services/whatsappService';
 
 interface SettingsModalProps {
