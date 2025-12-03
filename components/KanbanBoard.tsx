@@ -12,12 +12,12 @@ interface KanbanBoardProps {
 }
 
 const COLUMNS: { id: OpportunityStatus; title: string; color: string; borderColor: string }[] = [
-  { id: OpportunityStatus.NEW, title: 'Identificado', color: 'bg-blue-50', borderColor: 'border-blue-200' },
-  { id: OpportunityStatus.SENT, title: 'Contatado', color: 'bg-yellow-50', borderColor: 'border-yellow-200' },
-  { id: OpportunityStatus.RESPONDED, title: 'Em Conversa', color: 'bg-purple-50', borderColor: 'border-purple-200' },
-  { id: OpportunityStatus.SCHEDULED, title: 'Agendado', color: 'bg-green-50', borderColor: 'border-green-200' },
+  { id: OpportunityStatus.NEW, title: 'Identificado', color: 'bg-blue-50 dark:bg-blue-900/40', borderColor: 'border-blue-200 dark:border-blue-700' },
+  { id: OpportunityStatus.SENT, title: 'Contatado', color: 'bg-yellow-50 dark:bg-yellow-900/40', borderColor: 'border-yellow-200 dark:border-yellow-700' },
+  { id: OpportunityStatus.RESPONDED, title: 'Em Conversa', color: 'bg-purple-50 dark:bg-purple-900/40', borderColor: 'border-purple-200 dark:border-purple-700' },
+  { id: OpportunityStatus.SCHEDULED, title: 'Agendado', color: 'bg-green-50 dark:bg-green-900/40', borderColor: 'border-green-200 dark:border-green-700' },
   // Opcional: Arquivado pode ficar fora ou no final
-  { id: OpportunityStatus.ARCHIVED, title: 'Arquivado', color: 'bg-gray-50', borderColor: 'border-gray-200' },
+  { id: OpportunityStatus.ARCHIVED, title: 'Arquivado', color: 'bg-gray-50 dark:bg-gray-700', borderColor: 'border-gray-200 dark:border-gray-600' },
 ];
 
 export const KanbanBoard: React.FC<KanbanBoardProps> = ({ opportunities, onUpdateStatus, onViewDetails }) => {
@@ -72,8 +72,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ opportunities, onUpdat
             >
               {/* Header da Coluna */}
               <div className={`p-3 rounded-t-xl border-b ${col.borderColor} ${col.color} flex justify-between items-center`}>
-                <h3 className="font-semibold text-gray-700 dark:text-gray-200 text-sm">{col.title}</h3>
-                <span className="bg-white px-2 py-0.5 rounded-full text-xs font-bold text-gray-500 shadow-sm">
+                <h3 className="font-semibold text-gray-700 dark:text-gray-100 text-sm">{col.title}</h3>
+                <span className="bg-white dark:bg-gray-800 px-2 py-0.5 rounded-full text-xs font-bold text-gray-500 dark:text-gray-300 shadow-sm">
                   {items.length}
                 </span>
               </div>
