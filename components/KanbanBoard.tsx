@@ -111,11 +111,11 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ opportunities, onUpdat
                     </div>
 
                     <div className="mb-2 flex justify-between items-center">
-                      <span className="inline-block px-2 py-0.5 bg-indigo-50 text-indigo-700 text-[10px] font-medium rounded border border-indigo-100">
+                      <span className="inline-block px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 text-[10px] font-medium rounded border border-indigo-100 dark:border-indigo-700">
                         {opp.keywordFound}
                       </span>
                       {opp.notes && (
-                        <AlignLeft size={12} className="text-gray-400" title="Possui anotações" />
+                        <AlignLeft size={12} className="text-gray-400 dark:text-gray-500" title="Possui anotações" />
                       )}
                     </div>
 

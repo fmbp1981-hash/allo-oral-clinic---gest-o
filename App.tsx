@@ -394,12 +394,14 @@ const DatabasePage = ({
   patients,
   loading,
   opportunities,
-  onAddToPipeline
+  onAddToPipeline,
+  onRefresh
 }: {
   patients: Patient[],
   loading: boolean,
   opportunities: Opportunity[],
-  onAddToPipeline: (patient: Patient) => void
+  onAddToPipeline: (patient: Patient) => void,
+  onRefresh: () => void
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterTag, setFilterTag] = useState('all');
@@ -432,10 +434,19 @@ const DatabasePage = ({
           <p className="text-gray-500 dark:text-gray-400">Visualização completa dos registros odontológicos e status de reativação.</p>
         </div>
         <div className="flex gap-3 items-center self-end">
-          <div className="hidden sm:flex text-xs bg-green-100 text-green-700 px-2 py-1 rounded border border-green-200 items-center h-9">
+          <div className="hidden sm:flex text-xs bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 px-2 py-1 rounded border border-green-200 dark:border-green-700 items-center h-9">
             <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
             Supabase Conectado
           </div>
+          <button
+            onClick={onRefresh}
+            disabled={loading}
+            className="px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Atualizar base de pacientes do banco de dados"
+          >
+            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+            {loading ? 'Atualizando...' : 'Atualizar'}
+          </button>
           <ExportMenu
             data={filteredPatients}
             filename="base_pacientes_allo_oral"
@@ -617,6 +628,20 @@ const AppContent = ({ user, setUser }: { user: User | null; setUser: (user: User
       console.error('Error loading data:', error);
       // Fallback to local storage
       setOpportunities(getStoredOpportunities());
+      setDatabaseLoading(false);
+    }
+  };
+
+  const handleRefreshPatients = async () => {
+    setDatabaseLoading(true);
+    try {
+      const patients = await getAllPatients();
+      setDatabasePatients(patients);
+      toast.success('Base de pacientes atualizada!');
+    } catch (error) {
+      console.error('Error refreshing patients:', error);
+      toast.error('Erro ao atualizar base de pacientes');
+    } finally {
       setDatabaseLoading(false);
     }
   };
@@ -825,14 +850,14 @@ const AppContent = ({ user, setUser }: { user: User | null; setUser: (user: User
           </button>
 
           {/* Rodapé IntelliX.AI */}
-          <div className="mt-6 px-4 pb-2">
+          <div className="mt-6 pb-2">
             <div className="flex flex-col items-center justify-center pt-4 border-t border-gray-100 dark:border-gray-700 opacity-90 hover:opacity-100 transition-opacity cursor-default">
-              <span className="text-[10px] text-gray-400 mb-1">Desenvolvido por</span>
+              <span className="text-[10px] text-gray-400 dark:text-gray-500 mb-1 text-center">Desenvolvido por</span>
               <div className="flex items-center justify-center gap-1.5">
-                <Brain className="h-5 w-5 text-blue-600" />
+                <Brain className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                 <div className="text-sm font-bold tracking-tight">
-                  <span className="text-amber-500">IntelliX</span>
-                  <span className="text-blue-600">.AI</span>
+                  <span className="text-amber-500 dark:text-amber-400">IntelliX</span>
+                  <span className="text-blue-600 dark:text-blue-400">.AI</span>
                 </div>
               </div>
             </div>
@@ -912,6 +937,7 @@ const AppContent = ({ user, setUser }: { user: User | null; setUser: (user: User
                 loading={databaseLoading}
                 onAddToPipeline={handleAddFromDatabase}
                 opportunities={opportunities}
+                onRefresh={handleRefreshPatients}
               />
             </div>
           )}

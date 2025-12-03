@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Database, Link2, Key, MessageCircle, Workflow, FileText, Smartphone } from 'lucide-react';
+import { X, MessageCircle, Workflow, FileText, Smartphone } from 'lucide-react';
 import { getSettings, saveSettings } from '../services/mockN8nService';
 import { WhatsAppConfig, WhatsAppProvider, saveWhatsAppConfig } from '../services/whatsappService';
 
@@ -9,9 +9,6 @@ interface SettingsModalProps {
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
-  const [url, setUrl] = useState('');
-  const [msgUrl, setMsgUrl] = useState('');
-  const [apiKey, setApiKey] = useState('');
   const [template, setTemplate] = useState('');
 
   // WhatsApp Provider State
@@ -28,9 +25,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
   useEffect(() => {
     if (isOpen) {
       const settings = getSettings();
-      setUrl(settings.webhookUrl || '');
-      setMsgUrl(settings.messagingWebhookUrl || '');
-      setApiKey(settings.apiKey || '');
       setTemplate(settings.messageTemplate || 'Olá {name}, somos da Allo Oral Clinic. Verificamos seu histórico sobre "{keyword}" e gostaríamos de saber como está a saúde do seu sorriso. Podemos agendar uma avaliação?');
 
       // Load WhatsApp config from localStorage
@@ -56,9 +50,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
 
   const handleSave = () => {
     saveSettings({
-      webhookUrl: url,
-      messagingWebhookUrl: msgUrl,
-      apiKey,
       messageTemplate: template
     });
 
@@ -253,39 +244,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
             )}
           </div>
 
-          {/* Seção Busca */}
-          <div className="space-y-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <div className="flex items-center gap-2 pb-2 border-b border-gray-100 dark:border-gray-700">
-              <Database size={16} className="text-gray-500" />
-              <h4 className="text-sm font-bold text-gray-800 dark:text-white">2. Busca de Pacientes (Opcional)</h4>
-            </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              Webhook n8n que recebe a "keyword", consulta o banco SQL e retorna a lista de pacientes.
-            </p>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                Webhook de Busca URL
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Link2 className="h-4 w-4 text-gray-400" />
-                </div>
-                <input
-                  type="text"
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm shadow-sm"
-                  placeholder="https://n8n.suaclinica.com/webhook/busca-pacientes"
-                />
-              </div>
-            </div>
-          </div>
-
           {/* Template de Mensagem */}
           <div className="space-y-4 pt-4 border-t border-gray-200 dark:border-gray-700">
             <div className="flex items-center gap-2 pb-2 border-b border-gray-100 dark:border-gray-700">
               <MessageCircle size={16} className="text-gray-500" />
-              <h4 className="text-sm font-bold text-gray-800 dark:text-white">3. Template de Mensagem</h4>
+              <h4 className="text-sm font-bold text-gray-800 dark:text-white">2. Template de Mensagem</h4>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
