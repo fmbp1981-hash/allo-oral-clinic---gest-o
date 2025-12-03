@@ -1,25 +1,14 @@
-/**
- * Setup file for Jest tests
- * This file runs before all tests
- */
-
-// Set test environment variables
-process.env.NODE_ENV = 'test';
-process.env.JWT_SECRET = 'test-jwt-secret-key-for-testing-purposes';
-process.env.JWT_REFRESH_SECRET = 'test-jwt-refresh-secret-key-for-testing';
-process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/clinica_test';
-
-// Increase timeout for integration tests
-jest.setTimeout(10000);
-
-// Mock console methods to reduce noise in tests
-global.console = {
-  ...console,
-  // Keep these for debugging
-  log: jest.fn(),
-  debug: jest.fn(),
+// Mock logger to avoid noise in tests
+jest.mock('../src/lib/logger', () => ({
   info: jest.fn(),
-  // Keep error and warn for important messages
-  error: console.error,
-  warn: console.warn,
-};
+  warn: jest.fn(),
+  error: jest.fn(),
+  debug: jest.fn(),
+}));
+
+// Global setup if needed
+beforeAll(() => {
+  // Environment variables for testing
+  process.env.JWT_SECRET = 'test-secret';
+  process.env.JWT_REFRESH_SECRET = 'test-refresh-secret';
+});

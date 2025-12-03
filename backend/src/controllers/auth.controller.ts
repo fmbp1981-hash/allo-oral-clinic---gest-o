@@ -3,6 +3,7 @@ import supabase from '../lib/supabase';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import logger from '../lib/logger';
+import crypto from 'crypto';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'secret';
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'refresh-secret';
@@ -18,6 +19,11 @@ const generateTokens = (userId: string) => {
     });
 
     return { accessToken, refreshToken };
+};
+
+// Helper to hash refresh token
+const hashToken = (token: string): string => {
+    return crypto.createHash('sha256').update(token).digest('hex');
 };
 
 export const login = async (req: Request, res: Response) => {
@@ -46,8 +52,20 @@ export const login = async (req: Request, res: Response) => {
         // Generate tokens
         const { accessToken, refreshToken } = generateTokens(user.id);
 
-        // Remove password from response
-        const { password: _, ...safeUser } = user;
+        // Store refresh token hash in DB
+        const refreshTokenHash = hashToken(refreshToken);
+        const { error: updateError } = await supabase
+            .from('users')
+            .update({ refresh_token_hash: refreshTokenHash })
+            .eq('id', user.id);
+
+        if (updateError) {
+            logger.error('Error saving refresh token:', updateError);
+            return res.status(500).json({ error: 'Error processing login' });
+        }
+
+        // Remove sensitive data from response
+        const { password: _, refresh_token_hash: __, ...safeUser } = user;
 
         logger.info('User logged in successfully', { userId: user.id, email });
 
@@ -103,8 +121,15 @@ export const register = async (req: Request, res: Response) => {
         // Generate tokens
         const { accessToken, refreshToken } = generateTokens(user.id);
 
-        // Remove password from response
-        const { password: _, ...safeUser } = user;
+        // Store refresh token hash in DB
+        const refreshTokenHash = hashToken(refreshToken);
+        await supabase
+            .from('users')
+            .update({ refresh_token_hash: refreshTokenHash })
+            .eq('id', user.id);
+
+        // Remove sensitive data from response
+        const { password: _, refresh_token_hash: __, ...safeUser } = user;
 
         logger.info('User registered successfully', { userId: user.id, email });
 
@@ -128,20 +153,22 @@ export const refresh = async (req: Request, res: Response) => {
             return res.status(401).json({ error: 'Refresh token required' });
         }
 
-        // Verify refresh token
-        const decoded = jwt.verify(refreshToken, JWT_REFRESH_SECRET) as {
-            userId: string;
-            type: string;
-        };
+        // Verify refresh token signature
+        let decoded: any;
+        try {
+            decoded = jwt.verify(refreshToken, JWT_REFRESH_SECRET);
+        } catch (err) {
+            return res.status(401).json({ error: 'Invalid refresh token signature' });
+        }
 
         if (decoded.type !== 'refresh') {
             return res.status(401).json({ error: 'Invalid token type' });
         }
 
-        // Verify user still exists
+        // Verify user and stored hash
         const { data: user, error } = await supabase
             .from('users')
-            .select('id')
+            .select('id, refresh_token_hash')
             .eq('id', decoded.userId)
             .single();
 
@@ -150,8 +177,22 @@ export const refresh = async (req: Request, res: Response) => {
             return res.status(401).json({ error: 'User not found' });
         }
 
-        // Generate new tokens
+        // Verify if token matches stored hash
+        const incomingTokenHash = hashToken(refreshToken);
+        if (incomingTokenHash !== user.refresh_token_hash) {
+            logger.warn('Refresh token failed - token mismatch (possible reuse or revocation)', { userId: decoded.userId });
+            return res.status(401).json({ error: 'Invalid refresh token' });
+        }
+
+        // Generate new tokens (Rotate refresh token for extra security)
         const tokens = generateTokens(user.id);
+        const newRefreshTokenHash = hashToken(tokens.refreshToken);
+
+        // Update DB with new hash
+        await supabase
+            .from('users')
+            .update({ refresh_token_hash: newRefreshTokenHash })
+            .eq('id', user.id);
 
         logger.info('Tokens refreshed successfully', { userId: user.id });
 
@@ -160,10 +201,34 @@ export const refresh = async (req: Request, res: Response) => {
             refreshToken: tokens.refreshToken,
         });
     } catch (error: any) {
-        if (error instanceof jwt.JsonWebTokenError) {
-            return res.status(401).json({ error: 'Invalid refresh token' });
-        }
         logger.error('Refresh token error:', error);
         res.status(500).json({ error: 'Error refreshing token' });
+    }
+};
+
+export const logout = async (req: Request, res: Response) => {
+    try {
+        // Ideally we should get userId from the authenticated request
+        // But logout might be called even if access token is expired, so we rely on body or just success
+        // For a proper implementation, we should decode the access token (ignoring expiration) or use the refresh token to identify user
+
+        // Simple implementation: if we have a user in request (from auth middleware), invalidate their token
+        // If not, we just return success to client
+
+        // Note: You need to ensure your auth middleware attaches user to req
+        const userId = (req as any).user?.userId;
+
+        if (userId) {
+            await supabase
+                .from('users')
+                .update({ refresh_token_hash: null })
+                .eq('id', userId);
+            logger.info('User logged out', { userId });
+        }
+
+        res.json({ message: 'Logged out successfully' });
+    } catch (error: any) {
+        logger.error('Logout error:', error);
+        res.status(500).json({ error: 'Error logging out' });
     }
 };

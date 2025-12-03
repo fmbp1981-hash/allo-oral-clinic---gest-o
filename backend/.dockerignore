@@ -1,14 +1,7 @@
 node_modules
-npm-debug.log
 dist
+coverage
 .env
-.env.local
 .git
 .gitignore
 README.md
-.vscode
-.idea
-*.md
-.DS_Store
-coverage
-.nyc_output

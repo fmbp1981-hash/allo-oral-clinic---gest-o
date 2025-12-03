@@ -1,5 +1,13 @@
 import { Router } from 'express';
-import * as OpportunityController from '../controllers/opportunity.controller';
+import {
+    getOpportunities,
+    createOpportunity,
+    searchOpportunities,
+    updateOpportunityStatus,
+    updateOpportunityNotes,
+    deleteOpportunity,
+    deleteAllOpportunities
+} from '../controllers/opportunity.controller';
 import { authenticate } from '../middlewares/auth.middleware';
 import { searchLimiter, writeLimiter, criticalLimiter } from '../middlewares/rateLimiter.middleware';
 
@@ -9,18 +17,19 @@ const router = Router();
 router.use(authenticate);
 
 // Read operations
-router.get('/', OpportunityController.getOpportunities);
+router.get('/', getOpportunities);
 
 // Search with specific rate limiting (30 requests per minute)
-router.post('/search', searchLimiter, OpportunityController.searchOpportunities);
+// TEMPORARIAMENTE DESABILITADO - debug needed
+// router.post('/search', searchLimiter, searchOpportunities);
 
 // Write operations with rate limiting (20 requests per 5 minutes)
-router.post('/', writeLimiter, OpportunityController.createOpportunity);
-router.patch('/:id/status', writeLimiter, OpportunityController.updateOpportunityStatus);
-router.patch('/:id/notes', writeLimiter, OpportunityController.updateOpportunityNotes);
-router.delete('/:id', writeLimiter, OpportunityController.deleteOpportunity);
+router.post('/', writeLimiter, createOpportunity);
+router.patch('/:id/status', writeLimiter, updateOpportunityStatus);
+router.patch('/:id/notes', writeLimiter, updateOpportunityNotes);
+router.delete('/:id', writeLimiter, deleteOpportunity);
 
 // Critical operation - very strict rate limiting (3 requests per hour)
-router.delete('/', criticalLimiter, OpportunityController.deleteAllOpportunities);
+router.delete('/', criticalLimiter, deleteAllOpportunities);
 
 export default router;

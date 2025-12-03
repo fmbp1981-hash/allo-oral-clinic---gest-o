@@ -10,8 +10,8 @@
         "test": "jest",
         "test:watch": "jest --watch",
         "test:coverage": "jest --coverage",
-        "test:verbose": "jest --verbose",
-        "lint": "echo \"Linting...\" && exit 0"
+        "lint": "echo \"Linting...\" && exit 0",
+        "seed": "ts-node scripts/seed.ts"
     },
     "dependencies": {
         "@supabase/supabase-js": "^2.39.0",
@@ -23,6 +23,7 @@
         "helmet": "^8.1.0",
         "jsonwebtoken": "^9.0.2",
         "morgan": "^1.10.0",
+        "socket.io": "^4.7.2",
         "winston": "^3.11.0",
         "zod": "^4.1.12"
     },

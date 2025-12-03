@@ -23,6 +23,7 @@ import {
 import { useToast } from './hooks/useToast';
 import { useConfirm } from './hooks/useConfirm';
 import { useDebounce } from './hooks/useDebounce';
+import { NotificationsProvider, useNotifications } from './hooks/useNotifications';
 import { ConfirmModal } from './components/ConfirmModal';
 import { SkeletonTable, SkeletonCard } from './components/LoadingSpinner';
 import { BarChart, LineChart, StatsCard, DonutChart } from './components/Charts';
@@ -50,7 +51,6 @@ import {
   updateOpportunityNotes,
   getStoredUser,
   logoutUser,
-  getMockNotifications,
   deleteAllOpportunities
 } from './services/apiService';
 
@@ -434,7 +434,7 @@ const DatabasePage = ({
         <div className="flex gap-3 items-center self-end">
            <div className="hidden sm:flex text-xs bg-green-100 text-green-700 px-2 py-1 rounded border border-green-200 items-center h-9">
             <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
-            Neon DB Conectado
+            Supabase Conectado
           </div>
           <ExportMenu 
             data={filteredPatients} 
@@ -573,10 +573,9 @@ const DatabasePage = ({
 
 type Page = 'dashboard' | 'search' | 'pipeline' | 'database';
 
-const App = () => {
+const AppContent = ({ user, setUser }: { user: User | null; setUser: (user: User | null) => void }) => {
   const toast = useToast();
   const { confirm, confirmState, closeConfirm } = useConfirm();
-  const [user, setUser] = useState<User | null>(null);
   const [page, setPage] = useState<Page>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -593,16 +592,16 @@ const App = () => {
   const [databaseLoading, setDatabaseLoading] = useState(true);
 
   // Notifications State
-  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
 
+  // Real-time notifications via Socket.io
+  const { notifications, unreadCount, markAsRead } = useNotifications();
+
   useEffect(() => {
-    const storedUser = getStoredUser();
-    if (storedUser) {
-      setUser(storedUser);
+    if (user) {
       loadData();
     }
-  }, []);
+  }, [user]);
 
   const loadData = async () => {
     try {
@@ -614,10 +613,6 @@ const App = () => {
       const patients = await getAllPatients();
       setDatabasePatients(patients);
       setDatabaseLoading(false);
-
-      // Load notifications
-      const notifs = await getMockNotifications();
-      setNotifications(notifs);
     } catch (error) {
       console.error('Error loading data:', error);
       // Fallback to local storage
@@ -734,10 +729,6 @@ const App = () => {
     toast.success(`Paciente ${patient.name} adicionado ao Pipeline!`);
   };
 
-  const toggleNotification = (id: string) => {
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
-  };
-
   const NavItem = ({ id, icon: Icon, label }: { id: Page, icon: any, label: string }) => (
     <button 
       onClick={() => { setPage(id); setSidebarOpen(false); }}
@@ -755,8 +746,6 @@ const App = () => {
   if (!user) {
     return <LoginPage onLogin={handleLogin} />;
   }
-
-  const unreadNotifications = notifications.filter(n => !n.read).length;
 
   return (
     <div className="min-h-screen bg-gray-50/50 flex font-sans text-gray-900">
@@ -866,7 +855,7 @@ const App = () => {
                 className="p-2 text-gray-400 dark:text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors relative rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
               >
                 <Bell size={20} />
-                {unreadNotifications > 0 && (
+                {unreadCount > 0 && (
                   <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white dark:ring-gray-900"></span>
                 )}
               </button>
@@ -875,7 +864,7 @@ const App = () => {
                 isOpen={isNotifOpen}
                 onClose={() => setIsNotifOpen(false)}
                 notifications={notifications}
-                onMarkAsRead={toggleNotification}
+                onMarkAsRead={markAsRead}
               />
             </div>
           </div>
@@ -959,6 +948,24 @@ const App = () => {
         loading={confirmState.loading}
       />
     </div>
+  );
+};
+
+// Main App Wrapper with NotificationsProvider
+const App = () => {
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    const storedUser = getStoredUser();
+    if (storedUser) {
+      setUser(storedUser);
+    }
+  }, []);
+
+  return (
+    <NotificationsProvider userId={user?.id}>
+      <AppContent user={user} setUser={setUser} />
+    </NotificationsProvider>
   );
 };
 

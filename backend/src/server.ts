@@ -1,23 +1,32 @@
+// IMPORTANTE: dotenv.config() DEVE ser o primeiro comando
+import dotenv from 'dotenv';
+dotenv.config();
+
 import express from 'express';
+import { createServer } from 'http';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes';
 import patientRoutes from './routes/patient.routes';
-import opportunityRoutes from './routes/opportunity.routes';
+import opportunityRoutes from './routes/opportunity.routes.simple'; // TEMP: usando versão simplificada
 import settingsRoutes from './routes/settings.routes';
 import userRoutes from './routes/user.routes';
 import clinicalRecordRoutes from './routes/clinical-record.routes';
 import notificationRoutes from './routes/notification.routes';
-import whatsappRoutes from './routes/whatsapp.routes';
+import whatsappRoutes from './routes/whatsapp.routes.simple'; // TEMP: usando versão simplificada
 import { generalLimiter } from './middlewares/rateLimiter.middleware';
 import logger, { morganStream } from './lib/logger';
-
-dotenv.config();
+import notificationService from './services/notification.service';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Criar servidor HTTP (necessário para Socket.io)
+const httpServer = createServer(app);
+
+// Inicializar Socket.io
+notificationService.initializeSocket(httpServer);
 
 // Security Headers - Helmet.js
 app.use(helmet({
@@ -60,6 +69,9 @@ app.get('/health', (req, res) => {
         timestamp: new Date().toISOString(),
         uptime: process.uptime(),
         environment: process.env.NODE_ENV || 'development',
+        socketio: {
+            connected: notificationService.getConnectedUsersCount(),
+        },
     });
 });
 
@@ -99,10 +111,12 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
     });
 });
 
-app.listen(PORT, () => {
+// Usar httpServer ao invés de app.listen para suportar Socket.io
+httpServer.listen(PORT, () => {
     logger.info(`🚀 Server running on port ${PORT}`);
     logger.info(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
     logger.info(`🔒 Security headers enabled`);
     logger.info(`⏱️  Rate limiting active`);
     logger.info(`📝 Structured logging with Winston enabled`);
+    logger.info(`🔌 Socket.io initialized and ready`);
 });

@@ -17,6 +17,7 @@ export interface Database {
           password: string;
           clinic_name: string;
           avatar_url: string | null;
+          refresh_token_hash: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -27,6 +28,7 @@ export interface Database {
           password: string;
           clinic_name: string;
           avatar_url?: string | null;
+          refresh_token_hash?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -37,6 +39,7 @@ export interface Database {
           password?: string;
           clinic_name?: string;
           avatar_url?: string | null;
+          refresh_token_hash?: string | null;
           updated_at?: string;
         };
       };
