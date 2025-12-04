@@ -410,13 +410,13 @@ const DatabasePage = ({
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
   // Extrair todas as tags únicas para o filtro
-  const allTags = Array.from(new Set(patients.flatMap(p => p.history || []))) as string[];
+  const allTags = Array.from(new Set(patients.flatMap(p => Array.isArray(p.history) ? p.history : []))) as string[];
 
   // Filtragem otimizada com debounce
   const filteredPatients = patients.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
       p.phone.includes(debouncedSearchTerm);
-    const matchesTag = filterTag === 'all' || p.history?.includes(filterTag);
+    const matchesTag = filterTag === 'all' || (Array.isArray(p.history) && p.history.includes(filterTag));
     return matchesSearch && matchesTag;
   });
 
@@ -527,9 +527,12 @@ const DatabasePage = ({
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{p.phone}</td>
                       <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
                         <div className="flex flex-wrap gap-1">
-                          {p.history?.map(tag => (
-                            <span key={tag} className="px-2 py-0.5 bg-gray-100 rounded text-xs border border-gray-200">{tag}</span>
+                          {Array.isArray(p.history) && p.history.map(tag => (
+                            <span key={tag} className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-xs border border-gray-200 dark:border-gray-600 dark:text-gray-300">{tag}</span>
                           ))}
+                          {!Array.isArray(p.history) && p.history && (
+                            <span className="text-xs text-gray-400 dark:text-gray-500 italic">Sem tags</span>
+                          )}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{p.lastVisit ? new Date(p.lastVisit).toLocaleDateString() : '-'}</td>
