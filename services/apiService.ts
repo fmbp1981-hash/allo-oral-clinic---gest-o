@@ -161,19 +161,6 @@ export const updateUserProfile = async (user: User): Promise<User> => {
   }
 };
 
-export const resetPassword = async (email: string): Promise<void> => {
-  try {
-    await fetch(`${API_URL}/auth/reset-password`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email }),
-    });
-  } catch (error) {
-    console.error('Reset password error:', error);
-    throw error;
-  }
-};
-
 export const logoutUser = () => {
   localStorage.removeItem('auth_token');
   localStorage.removeItem('clinicaflow_user');
