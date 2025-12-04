@@ -18,7 +18,8 @@ import {
   User as UserIcon,
   PlusCircle,
   ArrowRight,
-  Eye
+  Eye,
+  Upload
 } from 'lucide-react';
 import { useToast } from './hooks/useToast';
 import { useConfirm } from './hooks/useConfirm';
