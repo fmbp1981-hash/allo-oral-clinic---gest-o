@@ -78,7 +78,13 @@ export const registerUser = async (
     });
 
     if (!response.ok) {
-      throw new Error('Erro ao criar conta');
+      const errorData = await response.json().catch(() => ({}));
+
+      if (response.status === 400 && errorData.error === 'User already exists') {
+        throw new Error('Este email já está cadastrado. Por favor, faça login ou use outro email.');
+      }
+
+      throw new Error(errorData.error || 'Erro ao criar conta');
     }
 
     const data = await response.json();
@@ -90,6 +96,52 @@ export const registerUser = async (
     return data.user;
   } catch (error) {
     console.error('Register error:', error);
+    throw error;
+  }
+};
+
+export const requestPasswordReset = async (email: string): Promise<string> => {
+  try {
+    const response = await fetch(`${API_URL}/auth/request-password-reset`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Erro ao solicitar recuperação de senha');
+    }
+
+    const data = await response.json();
+    return data.message;
+  } catch (error) {
+    console.error('Request password reset error:', error);
+    throw error;
+  }
+};
+
+export const resetPassword = async (
+  email: string,
+  resetToken: string,
+  newPassword: string
+): Promise<string> => {
+  try {
+    const response = await fetch(`${API_URL}/auth/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, resetToken, newPassword }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Erro ao redefinir senha');
+    }
+
+    const data = await response.json();
+    return data.message;
+  } catch (error) {
+    console.error('Reset password error:', error);
     throw error;
   }
 };

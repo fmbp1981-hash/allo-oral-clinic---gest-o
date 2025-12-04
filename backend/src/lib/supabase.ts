@@ -18,6 +18,8 @@ export interface Database {
           clinic_name: string;
           avatar_url: string | null;
           refresh_token_hash: string | null;
+          reset_token_hash: string | null;
+          reset_token_expires: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -29,6 +31,8 @@ export interface Database {
           clinic_name: string;
           avatar_url?: string | null;
           refresh_token_hash?: string | null;
+          reset_token_hash?: string | null;
+          reset_token_expires?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -40,6 +44,8 @@ export interface Database {
           clinic_name?: string;
           avatar_url?: string | null;
           refresh_token_hash?: string | null;
+          reset_token_hash?: string | null;
+          reset_token_expires?: string | null;
           updated_at?: string;
         };
       };

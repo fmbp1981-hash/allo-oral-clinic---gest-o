@@ -13,4 +13,8 @@ router.post('/register', authLimiter, validate(registerSchema), AuthController.r
 router.post('/refresh', authLimiter, validate(refreshSchema), AuthController.refresh);
 router.post('/logout', authenticate, AuthController.logout);
 
+// Password reset endpoints
+router.post('/request-password-reset', authLimiter, AuthController.requestPasswordReset);
+router.post('/reset-password', authLimiter, AuthController.resetPassword);
+
 export default router;

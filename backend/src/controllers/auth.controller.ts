@@ -232,3 +232,133 @@ export const logout = async (req: Request, res: Response) => {
         res.status(500).json({ error: 'Error logging out' });
     }
 };
+
+export const requestPasswordReset = async (req: Request, res: Response) => {
+    try {
+        const { email } = req.body;
+
+        // Check if user exists
+        const { data: user, error } = await supabase
+            .from('users')
+            .select('id, name, email')
+            .eq('email', email)
+            .single();
+
+        // Always return success to prevent email enumeration attacks
+        // But only actually send email if user exists
+        if (!error && user) {
+            // Generate reset token (6 digits for simplicity)
+            const resetToken = crypto.randomInt(100000, 999999).toString();
+            const resetTokenHash = hashToken(resetToken);
+            const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+            // Store hashed token in database
+            const { error: updateError } = await supabase
+                .from('users')
+                .update({
+                    reset_token_hash: resetTokenHash,
+                    reset_token_expires: expiresAt.toISOString(),
+                })
+                .eq('id', user.id);
+
+            if (updateError) {
+                logger.error('Error storing reset token:', updateError);
+            } else {
+                // TODO: Send email with reset token
+                // For now, log it (in production, use an email service)
+                logger.info('Password reset requested', {
+                    email,
+                    resetToken, // Remove this in production!
+                    expiresAt
+                });
+
+                // In development, you can see the token in logs
+                console.log(`\n🔑 PASSWORD RESET TOKEN FOR ${email}: ${resetToken}\n`);
+            }
+        } else {
+            // Log suspicious activity
+            logger.warn('Password reset requested for non-existent email', { email });
+        }
+
+        // Always return success
+        res.json({
+            message: 'If this email exists, a reset code will be sent to it.'
+        });
+    } catch (error: any) {
+        logger.error('Password reset request error:', error);
+        res.status(500).json({ error: 'Error processing password reset request' });
+    }
+};
+
+export const resetPassword = async (req: Request, res: Response) => {
+    try {
+        const { email, resetToken, newPassword } = req.body;
+
+        // Validate inputs
+        if (!email || !resetToken || !newPassword) {
+            return res.status(400).json({ error: 'Email, reset token, and new password are required' });
+        }
+
+        if (newPassword.length < 6) {
+            return res.status(400).json({ error: 'Password must be at least 6 characters' });
+        }
+
+        // Find user by email
+        const { data: user, error } = await supabase
+            .from('users')
+            .select('id, reset_token_hash, reset_token_expires')
+            .eq('email', email)
+            .single();
+
+        if (error || !user) {
+            logger.warn('Password reset failed - user not found', { email });
+            return res.status(400).json({ error: 'Invalid email or reset token' });
+        }
+
+        // Check if reset token exists
+        if (!user.reset_token_hash || !user.reset_token_expires) {
+            logger.warn('Password reset failed - no active reset request', { email });
+            return res.status(400).json({ error: 'Invalid or expired reset token' });
+        }
+
+        // Check if token is expired
+        const expiresAt = new Date(user.reset_token_expires);
+        if (expiresAt < new Date()) {
+            logger.warn('Password reset failed - token expired', { email });
+            return res.status(400).json({ error: 'Reset token has expired' });
+        }
+
+        // Verify token
+        const resetTokenHash = hashToken(resetToken);
+        if (resetTokenHash !== user.reset_token_hash) {
+            logger.warn('Password reset failed - invalid token', { email });
+            return res.status(400).json({ error: 'Invalid reset token' });
+        }
+
+        // Hash new password
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+        // Update password and clear reset token
+        const { error: updateError } = await supabase
+            .from('users')
+            .update({
+                password: hashedPassword,
+                reset_token_hash: null,
+                reset_token_expires: null,
+                refresh_token_hash: null, // Invalidate existing sessions
+            })
+            .eq('id', user.id);
+
+        if (updateError) {
+            logger.error('Error updating password:', updateError);
+            return res.status(500).json({ error: 'Error resetting password' });
+        }
+
+        logger.info('Password reset successfully', { userId: user.id, email });
+
+        res.json({ message: 'Password reset successfully. You can now login with your new password.' });
+    } catch (error: any) {
+        logger.error('Password reset error:', error);
+        res.status(500).json({ error: 'Error resetting password' });
+    }
+};

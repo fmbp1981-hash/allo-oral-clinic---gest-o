@@ -1,24 +1,26 @@
 
 import React, { useState } from 'react';
-import { Activity, Lock, Mail, Loader2, ArrowRight, User, Building2, ChevronLeft, CheckCircle } from 'lucide-react';
-import { loginUser, registerUser, resetPassword } from '../services/apiService';
+import { Activity, Lock, Mail, Loader2, ArrowRight, User, Building2, ChevronLeft, CheckCircle, Key } from 'lucide-react';
+import { loginUser, registerUser, requestPasswordReset, resetPassword } from '../services/apiService';
 import { User as UserType } from '../types';
 
 interface LoginPageProps {
   onLogin: (user: UserType) => void;
 }
 
-type AuthMode = 'login' | 'register' | 'forgot';
+type AuthMode = 'login' | 'register' | 'forgot' | 'reset';
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   const [mode, setMode] = useState<AuthMode>('login');
-  
+
   // Campos
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [clinicName, setClinicName] = useState('');
-  
+  const [resetToken, setResetToken] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+
   // Estados de UI
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -38,15 +40,21 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
         const user = await registerUser(name, email, password, clinicName);
         onLogin(user);
       } else if (mode === 'forgot') {
-        await resetPassword(email);
-        setSuccessMsg('E-mail de recuperação enviado com sucesso! Verifique sua caixa de entrada.');
-        setLoading(false); // Para no estado de sucesso
-        return; 
+        const message = await requestPasswordReset(email);
+        setSuccessMsg('Código de recuperação enviado! Verifique o console do backend para o código de 6 dígitos.');
+        setMode('reset'); // Avança para tela de reset
+        setLoading(false);
+        return;
+      } else if (mode === 'reset') {
+        const message = await resetPassword(email, resetToken, newPassword);
+        setSuccessMsg('Senha redefinida com sucesso! Você já pode fazer login com sua nova senha.');
+        setLoading(false);
+        return;
       }
     } catch (err: any) {
       setError(err.message || 'Ocorreu um erro. Tente novamente.');
     } finally {
-      if (mode !== 'forgot') setLoading(false);
+      if (mode !== 'forgot' && mode !== 'reset') setLoading(false);
     }
   };
 
@@ -68,11 +76,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
           {mode === 'login' && 'ClinicaFlow'}
           {mode === 'register' && 'Criar nova conta'}
           {mode === 'forgot' && 'Recuperar senha'}
+          {mode === 'reset' && 'Definir nova senha'}
         </h2>
         <p className="mt-2 text-center text-sm text-gray-600">
           {mode === 'login' && 'Gestão inteligente de pacientes e busca ativa'}
           {mode === 'register' && 'Comece a gerenciar seus pacientes hoje mesmo'}
-          {mode === 'forgot' && 'Informe seu e-mail para receber as instruções'}
+          {mode === 'forgot' && 'Informe seu e-mail para receber o código'}
+          {mode === 'reset' && 'Digite o código recebido e sua nova senha'}
         </p>
       </div>
 
@@ -162,8 +172,58 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                 </div>
               </div>
 
-              {/* Campos Comuns (Senha) - Exceto Forgot */}
-              {mode !== 'forgot' && (
+              {/* Campos exclusivos do modo Reset */}
+              {mode === 'reset' && (
+                <>
+                  <div>
+                    <label htmlFor="resetToken" className="block text-sm font-medium text-gray-700">
+                      Código de Recuperação
+                    </label>
+                    <div className="mt-1 relative rounded-md shadow-sm">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Key className="h-5 w-5 text-gray-400" />
+                      </div>
+                      <input
+                        id="resetToken"
+                        type="text"
+                        required={mode === 'reset'}
+                        value={resetToken}
+                        onChange={(e) => setResetToken(e.target.value)}
+                        className="bg-white text-gray-900 placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-lg py-3"
+                        placeholder="123456"
+                        maxLength={6}
+                        pattern="[0-9]{6}"
+                      />
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500">Digite o código de 6 dígitos recebido</p>
+                  </div>
+
+                  <div>
+                    <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700">
+                      Nova Senha
+                    </label>
+                    <div className="mt-1 relative rounded-md shadow-sm">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Lock className="h-5 w-5 text-gray-400" />
+                      </div>
+                      <input
+                        id="newPassword"
+                        type="password"
+                        autoComplete="new-password"
+                        required={mode === 'reset'}
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        className="bg-white text-gray-900 placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-lg py-3"
+                        placeholder="••••••••"
+                        minLength={6}
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Campos Comuns (Senha) - Exceto Forgot e Reset */}
+              {mode !== 'forgot' && mode !== 'reset' && (
                 <div>
                   <div className="flex justify-between items-center mb-1">
                     <label htmlFor="password" className="block text-sm font-medium text-gray-700">
@@ -226,7 +286,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                         </>
                       )}
                       {mode === 'register' && 'Criar Conta'}
-                      {mode === 'forgot' && 'Enviar Link de Recuperação'}
+                      {mode === 'forgot' && 'Enviar Código de Recuperação'}
+                      {mode === 'reset' && 'Redefinir Senha'}
                     </>
                   )}
                 </button>
@@ -254,8 +315,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                 </p>
               )}
 
-              {(mode === 'register' || mode === 'forgot') && !successMsg && (
-                <button 
+              {(mode === 'register' || mode === 'forgot' || mode === 'reset') && !successMsg && (
+                <button
                   onClick={() => switchMode('login')}
                   className="flex items-center justify-center w-full text-sm font-medium text-gray-500 hover:text-gray-700"
                 >

@@ -26,8 +26,10 @@ export const NotificationsProvider: React.FC<NotificationsProviderProps> = ({ us
 
   useEffect(() => {
     // Conectar ao Socket.io
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-    const newSocket = io(apiUrl, {
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+    // Remove /api do final para Socket.io
+    const socketUrl = apiUrl.replace(/\/api$/, '');
+    const newSocket = io(socketUrl, {
       transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionDelay: 1000,
