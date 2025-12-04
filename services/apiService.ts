@@ -442,5 +442,26 @@ export const sendMessageToPatient = async (opportunity: Opportunity): Promise<bo
   }
 };
 
+// --- Import Functions ---
+
+export const importPatientsFromFile = async (patients: any[]): Promise<{
+  success: boolean;
+  message: string;
+  imported: number;
+  total: number;
+}> => {
+  try {
+    const result = await fetchWithAuth('/patients/import', {
+      method: 'POST',
+      body: JSON.stringify({ patients }),
+    });
+
+    return result;
+  } catch (error) {
+    console.error('Import patients error:', error);
+    throw error;
+  }
+};
+
 // Export mock functions for backward compatibility (will be removed later)
 export const getAllPatientsMock = getAllPatients;

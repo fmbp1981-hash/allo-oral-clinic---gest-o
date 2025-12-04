@@ -1,9 +1,15 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import supabase from '../lib/supabase';
 import logger from '../lib/logger';
+import { AuthRequest } from '../middlewares/auth.middleware';
 
-export const getClinicalRecords = async (req: Request, res: Response) => {
+export const getClinicalRecords = async (req: AuthRequest, res: Response) => {
     try {
+        const userId = req.user?.userId;
+        if (!userId) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
         const { patientId } = req.query;
 
         let query = supabase
@@ -13,6 +19,7 @@ export const getClinicalRecords = async (req: Request, res: Response) => {
                 patient:patients(*),
                 opportunity:opportunities(*)
             `)
+            .eq('user_id', userId)
             .order('date', { ascending: false });
 
         if (patientId) {
@@ -33,8 +40,13 @@ export const getClinicalRecords = async (req: Request, res: Response) => {
     }
 };
 
-export const createClinicalRecord = async (req: Request, res: Response) => {
+export const createClinicalRecord = async (req: AuthRequest, res: Response) => {
     try {
+        const userId = req.user?.userId;
+        if (!userId) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
         const { date, description, type, patientId, opportunityId } = req.body;
 
         const { data: record, error } = await supabase
@@ -45,6 +57,7 @@ export const createClinicalRecord = async (req: Request, res: Response) => {
                 type,
                 patient_id: patientId,
                 opportunity_id: opportunityId,
+                user_id: userId,
             })
             .select()
             .single();
@@ -62,8 +75,13 @@ export const createClinicalRecord = async (req: Request, res: Response) => {
     }
 };
 
-export const updateClinicalRecord = async (req: Request, res: Response) => {
+export const updateClinicalRecord = async (req: AuthRequest, res: Response) => {
     try {
+        const userId = req.user?.userId;
+        if (!userId) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
         const { id } = req.params;
         const { date, description, type } = req.body;
 
@@ -76,6 +94,7 @@ export const updateClinicalRecord = async (req: Request, res: Response) => {
             .from('clinical_records')
             .update(updateData)
             .eq('id', id)
+            .eq('user_id', userId)
             .select()
             .single();
 
@@ -92,14 +111,20 @@ export const updateClinicalRecord = async (req: Request, res: Response) => {
     }
 };
 
-export const deleteClinicalRecord = async (req: Request, res: Response) => {
+export const deleteClinicalRecord = async (req: AuthRequest, res: Response) => {
     try {
+        const userId = req.user?.userId;
+        if (!userId) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
         const { id } = req.params;
 
         const { error } = await supabase
             .from('clinical_records')
             .delete()
-            .eq('id', id);
+            .eq('id', id)
+            .eq('user_id', userId);
 
         if (error) {
             logger.error('Error deleting clinical record:', error);

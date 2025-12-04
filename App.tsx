@@ -40,6 +40,7 @@ import { LoginPage } from './components/LoginPage';
 import { NotificationsPopover } from './components/NotificationsPopover';
 import { ProfileModal } from './components/ProfileModal';
 import { ScheduleModal } from './components/ScheduleModal';
+import { ImportPatientsModal } from './components/ImportPatientsModal';
 import { Opportunity, OpportunityStatus, Patient, User, Notification } from './types';
 import {
   searchPatientsByKeyword,
@@ -405,6 +406,7 @@ const DatabasePage = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterTag, setFilterTag] = useState('all');
+  const [showImportModal, setShowImportModal] = useState(false);
 
   // Debounce search term to optimize performance
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
@@ -438,6 +440,15 @@ const DatabasePage = ({
             <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
             Supabase Conectado
           </div>
+          <button
+            onClick={() => setShowImportModal(true)}
+            disabled={loading}
+            className="px-3 py-2 text-sm font-medium text-white bg-indigo-600 border border-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Importar pacientes de CSV ou XLSX"
+          >
+            <Upload size={16} />
+            Importar
+          </button>
           <button
             onClick={onRefresh}
             disabled={loading}
@@ -579,6 +590,12 @@ const DatabasePage = ({
           </div>
         </div>
       )}
+
+      <ImportPatientsModal
+        isOpen={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onSuccess={onRefresh}
+      />
     </div>
   );
 };
