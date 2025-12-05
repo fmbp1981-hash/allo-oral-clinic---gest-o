@@ -40,7 +40,7 @@ export class MetaProvider implements IWhatsAppProvider {
     return {
       configured: this.isConfigured(),
       provider: this.name,
-      phoneNumber: this.phoneNumberId ? '***' + this.phoneNumberId.slice(-4) : null,
+      phoneNumber: this.phoneNumberId ? '***' + this.phoneNumberId.slice(-4) : undefined,
     };
   }
 

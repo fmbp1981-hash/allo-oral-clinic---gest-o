@@ -35,7 +35,7 @@ export class EvolutionProvider implements IWhatsAppProvider {
     return {
       configured: this.isConfigured(),
       provider: this.name,
-      phoneNumber: null,
+      phoneNumber: undefined,
     };
   }
 

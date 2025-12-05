@@ -44,13 +44,13 @@ export const sendMessage = async (req: Request, res: Response) => {
     const result = await whatsappService.sendTextMessage(phone, message);
 
     logger.info('Message sent via API', {
-      messageId: result.messages[0]?.id,
+      messageId: result.messageId,
     });
 
     res.json({
       success: true,
-      messageId: result.messages[0]?.id,
-      waId: result.contacts[0]?.wa_id,
+      messageId: result.messageId,
+      provider: result.provider,
     });
   } catch (error: any) {
     logger.error('Error sending WhatsApp message:', error);
@@ -114,13 +114,13 @@ export const sendOpportunityMessage = async (req: Request, res: Response) => {
 
     logger.info('Opportunity message sent', {
       opportunityId: id,
-      messageId: result.messages[0]?.id,
+      messageId: result.messageId,
     });
 
     res.json({
       success: true,
-      messageId: result.messages[0]?.id,
-      waId: result.contacts[0]?.wa_id,
+      messageId: result.messageId,
+      provider: result.provider,
       opportunityId: id,
     });
   } catch (error: any) {
@@ -154,14 +154,13 @@ export const sendTemplateMessage = async (req: Request, res: Response) => {
     const result = await whatsappService.sendTemplateMessage(
       phone,
       templateName,
-      languageCode || 'pt_BR',
-      components
+      { locale: languageCode || 'pt_BR', ...components }
     );
 
     res.json({
       success: true,
-      messageId: result.messages[0]?.id,
-      waId: result.contacts[0]?.wa_id,
+      messageId: result.messageId,
+      provider: result.provider,
     });
   } catch (error: any) {
     logger.error('Error sending template message:', error);
@@ -302,7 +301,7 @@ export const sendBulkMessages = async (req: Request, res: Response) => {
 
         results.push({
           opportunityId: oppId,
-          messageId: result.messages[0]?.id,
+          messageId: result.messageId,
           success: true,
         });
 

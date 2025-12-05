@@ -9,6 +9,25 @@ import logger from './logger';
 export interface Database {
   public: {
     Tables: {
+      tenants: {
+        Row: {
+          id: string;
+          name: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          updated_at?: string;
+        };
+      };
       users: {
         Row: {
           id: string;
@@ -20,6 +39,8 @@ export interface Database {
           refresh_token_hash: string | null;
           reset_token_hash: string | null;
           reset_token_expires: string | null;
+          role: string | null;
+          tenant_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -33,6 +54,8 @@ export interface Database {
           refresh_token_hash?: string | null;
           reset_token_hash?: string | null;
           reset_token_expires?: string | null;
+          role?: string | null;
+          tenant_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -46,6 +69,8 @@ export interface Database {
           refresh_token_hash?: string | null;
           reset_token_hash?: string | null;
           reset_token_expires?: string | null;
+          role?: string | null;
+          tenant_id?: string | null;
           updated_at?: string;
         };
       };
@@ -57,6 +82,8 @@ export interface Database {
           email: string | null;
           history: string | null;
           last_visit: string | null;
+          user_id: string | null;
+          tenant_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -67,6 +94,8 @@ export interface Database {
           email?: string | null;
           history?: string | null;
           last_visit?: string | null;
+          user_id?: string | null;
+          tenant_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -77,6 +106,8 @@ export interface Database {
           email?: string | null;
           history?: string | null;
           last_visit?: string | null;
+          user_id?: string | null;
+          tenant_id?: string | null;
           updated_at?: string;
         };
       };
@@ -91,6 +122,8 @@ export interface Database {
           last_contact: string | null;
           scheduled_date: string | null;
           notes: string | null;
+          user_id: string | null;
+          tenant_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -104,6 +137,8 @@ export interface Database {
           last_contact?: string | null;
           scheduled_date?: string | null;
           notes?: string | null;
+          user_id?: string | null;
+          tenant_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -117,6 +152,8 @@ export interface Database {
           last_contact?: string | null;
           scheduled_date?: string | null;
           notes?: string | null;
+          user_id?: string | null;
+          tenant_id?: string | null;
           updated_at?: string;
         };
       };
@@ -128,6 +165,8 @@ export interface Database {
           type: string | null;
           patient_id: string;
           opportunity_id: string | null;
+          user_id: string | null;
+          tenant_id: string | null;
           created_at: string;
         };
         Insert: {
@@ -137,6 +176,8 @@ export interface Database {
           type?: string | null;
           patient_id: string;
           opportunity_id?: string | null;
+          user_id?: string | null;
+          tenant_id?: string | null;
           created_at?: string;
         };
         Update: {
@@ -146,6 +187,8 @@ export interface Database {
           type?: string | null;
           patient_id?: string;
           opportunity_id?: string | null;
+          user_id?: string | null;
+          tenant_id?: string | null;
         };
       };
       app_settings: {
@@ -155,6 +198,8 @@ export interface Database {
           messaging_webhook_url: string | null;
           api_key: string | null;
           message_template: string | null;
+          user_id: string | null;
+          tenant_id: string | null;
         };
         Insert: {
           id?: string;
@@ -162,6 +207,8 @@ export interface Database {
           messaging_webhook_url?: string | null;
           api_key?: string | null;
           message_template?: string | null;
+          user_id?: string | null;
+          tenant_id?: string | null;
         };
         Update: {
           id?: string;
@@ -169,6 +216,8 @@ export interface Database {
           messaging_webhook_url?: string | null;
           api_key?: string | null;
           message_template?: string | null;
+          user_id?: string | null;
+          tenant_id?: string | null;
         };
       };
       notifications: {
@@ -178,6 +227,8 @@ export interface Database {
           message: string;
           type: string;
           read: boolean;
+          user_id: string | null;
+          tenant_id: string | null;
           created_at: string;
         };
         Insert: {
@@ -186,6 +237,8 @@ export interface Database {
           message: string;
           type: string;
           read?: boolean;
+          user_id?: string | null;
+          tenant_id?: string | null;
           created_at?: string;
         };
         Update: {
@@ -194,6 +247,8 @@ export interface Database {
           message?: string;
           type?: string;
           read?: boolean;
+          user_id?: string | null;
+          tenant_id?: string | null;
         };
       };
     };

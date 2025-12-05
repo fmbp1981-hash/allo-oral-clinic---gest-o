@@ -72,7 +72,7 @@ class WhatsAppService {
 
     const template = customTemplate || defaultTemplate;
 
-    return this.sendTemplateMessage(to, template, { name, keyword });
+    return this.sendTemplateMessage(phone, template, { name, keyword });
   }
 
   /**

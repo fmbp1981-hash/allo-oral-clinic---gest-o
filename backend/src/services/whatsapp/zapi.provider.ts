@@ -33,7 +33,7 @@ export class ZAPIProvider implements IWhatsAppProvider {
     return {
       configured: this.isConfigured(),
       provider: this.name,
-      phoneNumber: null,
+      phoneNumber: undefined,
     };
   }
 

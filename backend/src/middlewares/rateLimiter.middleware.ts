@@ -26,3 +26,24 @@ export const authLimiter = rateLimit({
     });
   }
 });
+
+export const searchLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 30, // Limit search requests
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+export const writeLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 20, // Limit write operations
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+export const criticalLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 5, // Limit critical operations
+  standardHeaders: true,
+  legacyHeaders: false,
+});
