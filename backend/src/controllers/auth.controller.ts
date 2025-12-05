@@ -9,12 +9,12 @@ const JWT_SECRET = process.env.JWT_SECRET || 'secret';
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'refresh-secret';
 
 // Helper to generate tokens
-const generateTokens = (userId: string) => {
-    const accessToken = jwt.sign({ userId }, JWT_SECRET, {
+const generateTokens = (userId: string, tenantId: string) => {
+    const accessToken = jwt.sign({ userId, tenantId }, JWT_SECRET, {
         expiresIn: '15m', // Short-lived access token
     });
 
-    const refreshToken = jwt.sign({ userId, type: 'refresh' }, JWT_REFRESH_SECRET, {
+    const refreshToken = jwt.sign({ userId, tenantId, type: 'refresh' }, JWT_REFRESH_SECRET, {
         expiresIn: '7d', // Long-lived refresh token
     });
 
@@ -168,7 +168,7 @@ export const refresh = async (req: Request, res: Response) => {
         // Verify user and stored hash
         const { data: user, error } = await supabase
             .from('users')
-            .select('id, refresh_token_hash')
+            .select('id, refresh_token_hash, tenant_id') // Fetch tenant_id too
             .eq('id', decoded.userId)
             .single();
 
@@ -185,7 +185,8 @@ export const refresh = async (req: Request, res: Response) => {
         }
 
         // Generate new tokens (Rotate refresh token for extra security)
-        const tokens = generateTokens(user.id);
+        const tenantId = user.tenant_id || 'default-tenant';
+        const tokens = generateTokens(user.id, tenantId);
         const newRefreshTokenHash = hashToken(tokens.refreshToken);
 
         // Update DB with new hash
@@ -208,14 +209,6 @@ export const refresh = async (req: Request, res: Response) => {
 
 export const logout = async (req: Request, res: Response) => {
     try {
-        // Ideally we should get userId from the authenticated request
-        // But logout might be called even if access token is expired, so we rely on body or just success
-        // For a proper implementation, we should decode the access token (ignoring expiration) or use the refresh token to identify user
-
-        // Simple implementation: if we have a user in request (from auth middleware), invalidate their token
-        // If not, we just return success to client
-
-        // Note: You need to ensure your auth middleware attaches user to req
         const userId = (req as any).user?.userId;
 
         if (userId) {
@@ -247,7 +240,6 @@ export const requestPasswordReset = async (req: Request, res: Response) => {
         // Always return success to prevent email enumeration attacks
         // But only actually send email if user exists
         if (!error && user) {
-            // Generate reset token (6 digits for simplicity)
             const resetToken = crypto.randomInt(100000, 999999).toString();
             const resetTokenHash = hashToken(resetToken);
             const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes

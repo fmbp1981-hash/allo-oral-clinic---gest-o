@@ -7,19 +7,24 @@ export const getClinicalRecords = async (req: AuthRequest, res: Response) => {
     try {
         const userId = req.user?.userId;
         if (!userId) {
-            return res.status(401).json({ error: 'Unauthorized' });
-        }
+            const userId = req.user?.userId;
+            const tenantId = req.user?.tenantId;
+            if (!userId || !tenantId) {
+                return res.status(401).json({ error: 'Unauthorized' });
+            }
 
-        const { patientId } = req.query;
+            const { patientId } = req.query;
 
-        let query = supabase
-            .from('clinical_records')
-            .select(`
+            let query = supabase
+                .from('clinical_records')
+                .select(`
                 *,
                 patient:patients(*),
                 opportunity:opportunities(*)
             `)
-            .eq('user_id', userId)
+            opportunity: opportunities(*)
+                `)
+            .eq('tenant_id', tenantId) // Scope by tenant
             .order('date', { ascending: false });
 
         if (patientId) {
@@ -44,6 +49,9 @@ export const createClinicalRecord = async (req: AuthRequest, res: Response) => {
     try {
         const userId = req.user?.userId;
         if (!userId) {
+        const userId = req.user?.userId;
+        const tenantId = req.user?.tenantId;
+        if (!userId || !tenantId) {
             return res.status(401).json({ error: 'Unauthorized' });
         }
 
@@ -57,7 +65,9 @@ export const createClinicalRecord = async (req: AuthRequest, res: Response) => {
                 type,
                 patient_id: patientId,
                 opportunity_id: opportunityId,
+                opportunity_id: opportunityId,
                 user_id: userId,
+                tenant_id: tenantId,
             })
             .select()
             .single();
@@ -79,6 +89,9 @@ export const updateClinicalRecord = async (req: AuthRequest, res: Response) => {
     try {
         const userId = req.user?.userId;
         if (!userId) {
+        const userId = req.user?.userId;
+        const tenantId = req.user?.tenantId;
+        if (!userId || !tenantId) {
             return res.status(401).json({ error: 'Unauthorized' });
         }
 
@@ -94,7 +107,9 @@ export const updateClinicalRecord = async (req: AuthRequest, res: Response) => {
             .from('clinical_records')
             .update(updateData)
             .eq('id', id)
-            .eq('user_id', userId)
+            .update(updateData)
+            .eq('id', id)
+            .eq('tenant_id', tenantId)
             .select()
             .single();
 
@@ -115,6 +130,9 @@ export const deleteClinicalRecord = async (req: AuthRequest, res: Response) => {
     try {
         const userId = req.user?.userId;
         if (!userId) {
+        const userId = req.user?.userId;
+        const tenantId = req.user?.tenantId;
+        if (!userId || !tenantId) {
             return res.status(401).json({ error: 'Unauthorized' });
         }
 
@@ -123,8 +141,9 @@ export const deleteClinicalRecord = async (req: AuthRequest, res: Response) => {
         const { error } = await supabase
             .from('clinical_records')
             .delete()
+            .delete()
             .eq('id', id)
-            .eq('user_id', userId);
+            .eq('tenant_id', tenantId);
 
         if (error) {
             logger.error('Error deleting clinical record:', error);

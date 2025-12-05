@@ -7,16 +7,20 @@ export const getOpportunities = async (req: AuthRequest, res: Response) => {
     try {
         const userId = req.user?.userId;
         if (!userId) {
-            return res.status(401).json({ error: 'Unauthorized' });
-        }
+            const userId = req.user?.userId;
+            const tenantId = req.user?.tenantId;
+            if (!userId || !tenantId) {
+                return res.status(401).json({ error: 'Unauthorized' });
+            }
 
-        const { data: opportunities, error } = await supabase
-            .from('opportunities')
-            .select(`
+            const { data: opportunities, error } = await supabase
+                .from('opportunities')
+                .select(`
                 *,
                 patient:patients(*)
             `)
-            .eq('user_id', userId)
+                `)
+            .eq('tenant_id', tenantId)
             .order('created_at', { ascending: false });
 
         if (error) {
@@ -35,6 +39,9 @@ export const createOpportunity = async (req: AuthRequest, res: Response) => {
     try {
         const userId = req.user?.userId;
         if (!userId) {
+        const userId = req.user?.userId;
+        const tenantId = req.user?.tenantId;
+        if (!userId || !tenantId) {
             return res.status(401).json({ error: 'Unauthorized' });
         }
 
@@ -48,7 +55,9 @@ export const createOpportunity = async (req: AuthRequest, res: Response) => {
                 phone,
                 keyword_found: keywordFound,
                 status: status || 'NEW',
+                status: status || 'NEW',
                 user_id: userId,
+                tenant_id: tenantId,
             })
             .select()
             .single();
@@ -70,6 +79,9 @@ export const searchOpportunities = async (req: AuthRequest, res: Response) => {
     try {
         const userId = req.user?.userId;
         if (!userId) {
+        const userId = req.user?.userId;
+        const tenantId = req.user?.tenantId;
+        if (!userId || !tenantId) {
             return res.status(401).json({ error: 'Unauthorized' });
         }
 
@@ -82,10 +94,10 @@ export const searchOpportunities = async (req: AuthRequest, res: Response) => {
             .from('patients')
             .select(`
                 *,
-                clinical_records:clinical_records(*)
-            `)
-            .eq('user_id', userId)
-            .ilike('history', `%${keyword.toLowerCase()}%`)
+                clinical_records: clinical_records(*)
+                    `)
+            .eq('tenant_id', tenantId) // Scope search by tenant
+            .ilike('history', `% ${ keyword.toLowerCase() }% `)
             .limit(parseInt(limit as string));
 
         if (error) {
@@ -95,7 +107,7 @@ export const searchOpportunities = async (req: AuthRequest, res: Response) => {
 
         // Create opportunities from found patients
         const opportunities = (patients || []).map(patient => ({
-            id: `opp_${Date.now()}_${patient.id}`,
+            id: `opp_${ Date.now() }_${ patient.id } `,
             patientId: patient.id,
             name: patient.name,
             phone: patient.phone,
@@ -117,6 +129,9 @@ export const updateOpportunityStatus = async (req: AuthRequest, res: Response) =
     try {
         const userId = req.user?.userId;
         if (!userId) {
+        const userId = req.user?.userId;
+        const tenantId = req.user?.tenantId;
+        if (!userId || !tenantId) {
             return res.status(401).json({ error: 'Unauthorized' });
         }
 
@@ -157,6 +172,9 @@ export const updateOpportunityNotes = async (req: AuthRequest, res: Response) =>
     try {
         const userId = req.user?.userId;
         if (!userId) {
+        const userId = req.user?.userId;
+        const tenantId = req.user?.tenantId;
+        if (!userId || !tenantId) {
             return res.status(401).json({ error: 'Unauthorized' });
         }
 
@@ -188,6 +206,9 @@ export const deleteOpportunity = async (req: AuthRequest, res: Response) => {
     try {
         const userId = req.user?.userId;
         if (!userId) {
+        const userId = req.user?.userId;
+        const tenantId = req.user?.tenantId;
+        if (!userId || !tenantId) {
             return res.status(401).json({ error: 'Unauthorized' });
         }
 
@@ -197,7 +218,9 @@ export const deleteOpportunity = async (req: AuthRequest, res: Response) => {
             .from('opportunities')
             .delete()
             .eq('id', id)
-            .eq('user_id', userId);
+            .delete()
+            .eq('id', id)
+            .eq('tenant_id', tenantId);
 
         if (error) {
             logger.error('Delete error:', error);
@@ -216,13 +239,17 @@ export const deleteAllOpportunities = async (req: AuthRequest, res: Response) =>
     try {
         const userId = req.user?.userId;
         if (!userId) {
+        const userId = req.user?.userId;
+        const tenantId = req.user?.tenantId;
+        if (!userId || !tenantId) {
             return res.status(401).json({ error: 'Unauthorized' });
         }
 
         const { error } = await supabase
             .from('opportunities')
             .delete()
-            .eq('user_id', userId);
+            .delete()
+            .eq('tenant_id', tenantId);
 
         if (error) {
             logger.error('Delete all error:', error);

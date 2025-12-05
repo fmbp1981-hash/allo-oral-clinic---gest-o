@@ -12,14 +12,19 @@ export interface Notification {
     type: NotificationType;
     read: boolean;
     created_at: string;
+    created_at: string;
     user_id?: string;
+    tenant_id: string; // Add tenant_id
 }
+
 
 export interface CreateNotificationData {
     title: string;
     message: string;
     type: NotificationType;
+    type: NotificationType;
     userId?: string;
+    tenantId: string; // Add tenantId
 }
 
 class NotificationService {
@@ -43,12 +48,13 @@ class NotificationService {
             logger.info(`Socket conectado: ${socket.id}`);
 
             // Autenticar usuário via token
-            socket.on('authenticate', (userId: string) => {
-                this.connectedUsers.set(userId, socket);
-                logger.info(`Usuário ${userId} autenticado no socket ${socket.id}`);
+            socket.on('authenticate', (data: { userId: string; tenantId: string }) => {
+                const { userId, tenantId } = data;
+                this.connectedUsers.set(userId, socket); // TODO: Maybe map by userId+tenantId? For now userId is unique enough.
+                logger.info(`Usuário ${userId} (Tenant: ${tenantId}) autenticado no socket ${socket.id}`);
 
                 // Enviar notificações não lidas ao conectar
-                this.sendUnreadNotifications(userId, socket);
+                this.sendUnreadNotifications(userId, tenantId, socket);
             });
 
             // Marcar notificação como lida
@@ -89,7 +95,9 @@ class NotificationService {
                     message: data.message,
                     type: data.type,
                     read: false,
+                    read: false,
                     user_id: data.userId || null,
+                    tenant_id: data.tenantId, // Insert tenant_id
                 })
                 .select()
                 .single();
@@ -118,39 +126,42 @@ class NotificationService {
     /**
      * Busca todas as notificações de um usuário
      */
-    public async getUserNotifications(userId?: string, limit: number = 50): Promise<Notification[]> {
+    public async getUserNotifications(userId?: string, tenantId?: string, limit: number = 50): Promise<Notification[]> {
         try {
-            let query = supabase
-                .from('notifications')
-                .select('*')
-                .order('created_at', { ascending: false })
-                .limit(limit);
+            if (!tenantId) return []; // TenantId is required usually, unless superadmin?
 
-            // Se userId for fornecido, filtra por usuário ou notificações globais
-            if (userId) {
-                query = query.or(`user_id.eq.${userId},user_id.is.null`);
-            } else {
-                query = query.is('user_id', null);
-            }
+            try {
+                let query = supabase
+                    .from('notifications')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(limit);
 
-            const { data, error } = await query;
+                // Se userId for fornecido, filtra por usuário ou notificações globais DO MESMO TENANT
+                if (userId) {
+                    query = query.or(`user_id.eq.${userId},user_id.is.null`).eq('tenant_id', tenantId);
+                } else {
+                    query = query.is('user_id', null).eq('tenant_id', tenantId);
+                }
 
-            if (error) {
-                logger.error('Erro ao buscar notificações:', error);
+                const { data, error } = await query;
+
+                if (error) {
+                    logger.error('Erro ao buscar notificações:', error);
+                    return [];
+                }
+
+                return (data as Notification[]) || [];
+            } catch (error) {
+                logger.error('Exceção ao buscar notificações:', error);
                 return [];
             }
-
-            return (data as Notification[]) || [];
-        } catch (error) {
-            logger.error('Exceção ao buscar notificações:', error);
-            return [];
         }
-    }
 
     /**
      * Busca notificações não lidas
      */
-    public async getUnreadNotifications(userId?: string): Promise<Notification[]> {
+    public async getUnreadNotifications(userId?: string, tenantId?: string): Promise<Notification[]> {
         try {
             let query = supabase
                 .from('notifications')
@@ -158,10 +169,12 @@ class NotificationService {
                 .eq('read', false)
                 .order('created_at', { ascending: false });
 
-            if (userId) {
-                query = query.or(`user_id.eq.${userId},user_id.is.null`);
+            if (userId && tenantId) {
+                query = query.or(`user_id.eq.${userId},user_id.is.null`).eq('tenant_id', tenantId);
+            } else if (tenantId) {
+                query = query.is('user_id', null).eq('tenant_id', tenantId);
             } else {
-                query = query.is('user_id', null);
+                return [];
             }
 
             const { data, error } = await query;
@@ -204,17 +217,19 @@ class NotificationService {
     /**
      * Marca todas as notificações de um usuário como lidas
      */
-    public async markAllAsRead(userId?: string): Promise<boolean> {
+    public async markAllAsRead(userId?: string, tenantId?: string): Promise<boolean> {
         try {
             let query = supabase
                 .from('notifications')
                 .update({ read: true })
                 .eq('read', false);
 
-            if (userId) {
-                query = query.or(`user_id.eq.${userId},user_id.is.null`);
+            if (userId && tenantId) {
+                query = query.or(`user_id.eq.${userId},user_id.is.null`).eq('tenant_id', tenantId);
+            } else if (tenantId) {
+                query = query.is('user_id', null).eq('tenant_id', tenantId);
             } else {
-                query = query.is('user_id', null);
+                return false;
             }
 
             const { error } = await query;
@@ -281,9 +296,9 @@ class NotificationService {
     /**
      * Envia notificações não lidas quando o usuário se conecta
      */
-    private async sendUnreadNotifications(userId: string, socket: Socket): Promise<void> {
+    private async sendUnreadNotifications(userId: string, tenantId: string, socket: Socket): Promise<void> {
         try {
-            const unreadNotifications = await this.getUnreadNotifications(userId);
+            const unreadNotifications = await this.getUnreadNotifications(userId, tenantId);
 
             if (unreadNotifications.length > 0) {
                 socket.emit('unread_notifications', unreadNotifications);

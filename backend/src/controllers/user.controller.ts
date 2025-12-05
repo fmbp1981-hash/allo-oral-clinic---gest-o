@@ -1,13 +1,20 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import bcrypt from 'bcryptjs';
 import supabase from '../lib/supabase';
 import logger from '../lib/logger';
+import { AuthRequest } from '../middlewares/auth.middleware';
 
-export const getUsers = async (req: Request, res: Response) => {
+export const getUsers = async (req: AuthRequest, res: Response) => {
     try {
+        const tenantId = req.user?.tenantId;
+        if (!tenantId) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
         const { data: users, error } = await supabase
             .from('users')
             .select('id, name, email, clinic_name, avatar_url, created_at, updated_at')
+            .eq('tenant_id', tenantId)
             .order('created_at', { ascending: false });
 
         if (error) {
@@ -25,11 +32,17 @@ export const getUsers = async (req: Request, res: Response) => {
 export const getUserById = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
+        const tenantId = req.user?.tenantId;
+
+        if (!tenantId) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
 
         const { data: user, error } = await supabase
             .from('users')
             .select('id, name, email, clinic_name, avatar_url, created_at, updated_at')
             .eq('id', id)
+            .eq('tenant_id', tenantId)
             .single();
 
         if (error || !user) {
@@ -44,9 +57,14 @@ export const getUserById = async (req: Request, res: Response) => {
     }
 };
 
-export const createUser = async (req: Request, res: Response) => {
+export const createUser = async (req: AuthRequest, res: Response) => {
     try {
         const { name, email, password, clinicName, avatarUrl } = req.body;
+        const tenantId = req.user?.tenantId;
+
+        if (!tenantId) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
 
         // Check if user already exists
         const { data: existingUser } = await supabase
@@ -71,6 +89,7 @@ export const createUser = async (req: Request, res: Response) => {
                 password: hashedPassword,
                 clinic_name: clinicName,
                 avatar_url: avatarUrl,
+                tenant_id: tenantId,
             })
             .select('id, name, email, clinic_name, avatar_url, created_at, updated_at')
             .single();
@@ -88,10 +107,15 @@ export const createUser = async (req: Request, res: Response) => {
     }
 };
 
-export const updateUser = async (req: Request, res: Response) => {
+export const updateUser = async (req: AuthRequest, res: Response) => {
     try {
         const { id } = req.params;
         const { name, email, clinicName, avatarUrl } = req.body;
+        const tenantId = req.user?.tenantId;
+
+        if (!tenantId) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
 
         const updateData: any = {};
         if (name !== undefined) updateData.name = name;
@@ -103,6 +127,7 @@ export const updateUser = async (req: Request, res: Response) => {
             .from('users')
             .update(updateData)
             .eq('id', id)
+            .eq('tenant_id', tenantId)
             .select('id, name, email, clinic_name, avatar_url, created_at, updated_at')
             .single();
 
@@ -119,14 +144,20 @@ export const updateUser = async (req: Request, res: Response) => {
     }
 };
 
-export const deleteUser = async (req: Request, res: Response) => {
+export const deleteUser = async (req: AuthRequest, res: Response) => {
     try {
         const { id } = req.params;
+        const tenantId = req.user?.tenantId;
+
+        if (!tenantId) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
 
         const { error } = await supabase
             .from('users')
             .delete()
-            .eq('id', id);
+            .eq('id', id)
+            .eq('tenant_id', tenantId);
 
         if (error) {
             logger.error('Error deleting user:', error);

@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
 export interface AuthRequest extends Request {
-    user?: { userId: string };
+    user?: { userId: string; tenantId: string };
 }
 
 export const authenticate = (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -15,7 +15,7 @@ export const authenticate = (req: AuthRequest, res: Response, next: NextFunction
     const [, token] = authHeader.split(' ');
 
     try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as { userId: string };
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as { userId: string; tenantId: string };
         req.user = decoded;
         next();
     } catch (error) {

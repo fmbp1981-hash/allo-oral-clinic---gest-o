@@ -7,6 +7,7 @@ import { Request, Response } from 'express';
 import whatsappService from '../services/whatsapp.service.v2';
 import supabase from '../lib/supabase';
 import logger from '../lib/logger';
+import { AuthRequest } from '../middlewares/auth.middleware';
 
 /**
  * Get WhatsApp service status
@@ -64,10 +65,15 @@ export const sendMessage = async (req: Request, res: Response) => {
 /**
  * Send message to an opportunity
  */
-export const sendOpportunityMessage = async (req: Request, res: Response) => {
+export const sendOpportunityMessage = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const { customTemplate } = req.body;
+    const tenantId = req.user?.tenantId;
+
+    if (!tenantId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
 
     // Get opportunity from database
     const { data: opportunity, error: fetchError } = await supabase
@@ -77,6 +83,7 @@ export const sendOpportunityMessage = async (req: Request, res: Response) => {
         patient:patients(*)
       `)
       .eq('id', id)
+      .eq('tenant_id', tenantId)
       .single();
 
     if (fetchError || !opportunity) {
@@ -243,9 +250,14 @@ export const handleWebhook = async (req: Request, res: Response) => {
 /**
  * Bulk send messages to multiple opportunities
  */
-export const sendBulkMessages = async (req: Request, res: Response) => {
+export const sendBulkMessages = async (req: AuthRequest, res: Response) => {
   try {
     const { opportunityIds, customTemplate } = req.body;
+    const tenantId = req.user?.tenantId;
+
+    if (!tenantId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
 
     if (!opportunityIds || !Array.isArray(opportunityIds) || opportunityIds.length === 0) {
       return res.status(400).json({
@@ -269,6 +281,7 @@ export const sendBulkMessages = async (req: Request, res: Response) => {
           .from('opportunities')
           .select('*')
           .eq('id', oppId)
+          .eq('tenant_id', tenantId)
           .single();
 
         if (fetchError || !opportunity) {

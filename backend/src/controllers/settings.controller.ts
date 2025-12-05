@@ -1,13 +1,19 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
+import { AuthRequest } from '../middlewares/auth.middleware';
 import supabase from '../lib/supabase';
 import logger from '../lib/logger';
 
-export const getSettings = async (req: Request, res: Response) => {
+export const getSettings = async (req: AuthRequest, res: Response) => {
     try {
+        const tenantId = req.user?.tenantId;
+        if (!tenantId) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
         const { data: settings, error } = await supabase
             .from('app_settings')
             .select('*')
-            .limit(1)
+            .eq('tenant_id', tenantId)
             .single();
 
         if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
@@ -22,15 +28,21 @@ export const getSettings = async (req: Request, res: Response) => {
     }
 };
 
-export const updateSettings = async (req: Request, res: Response) => {
+export const updateSettings = async (req: AuthRequest, res: Response) => {
     try {
+        const userId = req.user?.userId;
+        const tenantId = req.user?.tenantId;
+        if (!userId || !tenantId) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
         const { webhookUrl, messagingWebhookUrl, apiKey, messageTemplate } = req.body;
 
         // Check if settings already exist
         const { data: existing } = await supabase
             .from('app_settings')
             .select('id')
-            .limit(1)
+            .eq('tenant_id', tenantId)
             .single();
 
         let settings;
@@ -54,20 +66,6 @@ export const updateSettings = async (req: Request, res: Response) => {
                 return res.status(500).json({ error: 'Error updating settings' });
             }
 
-            settings = data;
-            logger.info('Settings updated', { settingsId: existing.id });
-        } else {
-            // Create new settings
-            const { data, error } = await supabase
-                .from('app_settings')
-                .insert({
-                    webhook_url: webhookUrl,
-                    messaging_webhook_url: messagingWebhookUrl,
-                    api_key: apiKey,
-                    message_template: messageTemplate,
-                })
-                .select()
-                .single();
 
             if (error) {
                 logger.error('Error creating settings:', error);

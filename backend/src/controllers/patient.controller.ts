@@ -17,7 +17,8 @@ export const getPatients = async (req: AuthRequest, res: Response) => {
                 clinical_records:clinical_records(*),
                 opportunities:opportunities(*)
             `)
-            .eq('user_id', userId)
+            `)
+            .eq('tenant_id', tenantId)
             .order('created_at', { ascending: false });
 
         if (error) {
@@ -48,7 +49,9 @@ export const createPatient = async (req: AuthRequest, res: Response) => {
                 phone,
                 email,
                 history: history || '',
+                history: history || '',
                 user_id: userId,
+                tenant_id: tenantId,
             })
             .select()
             .single();
@@ -78,12 +81,12 @@ export const getPatientById = async (req: AuthRequest, res: Response) => {
         const { data: patient, error } = await supabase
             .from('patients')
             .select(`
-                *,
-                clinical_records:clinical_records(*),
-                opportunities:opportunities(*)
-            `)
+            *,
+            clinical_records: clinical_records(*),
+                opportunities: opportunities(*)
+                    `)
             .eq('id', id)
-            .eq('user_id', userId)
+            .eq('tenant_id', tenantId) // Scope by tenant
             .single();
 
         if (error || !patient) {
@@ -118,7 +121,9 @@ export const updatePatient = async (req: AuthRequest, res: Response) => {
             .from('patients')
             .update(updateData)
             .eq('id', id)
-            .eq('user_id', userId)
+            .update(updateData)
+            .eq('id', id)
+            .eq('tenant_id', tenantId)
             .select()
             .single();
 
@@ -148,7 +153,9 @@ export const deletePatient = async (req: AuthRequest, res: Response) => {
             .from('patients')
             .delete()
             .eq('id', id)
-            .eq('user_id', userId);
+            .delete()
+            .eq('id', id)
+            .eq('tenant_id', tenantId);
 
         if (error) {
             logger.error('Error deleting patient:', error);
@@ -182,26 +189,27 @@ export const searchPatients = async (req: AuthRequest, res: Response) => {
         const { data: patients, error } = await supabase
             .from('patients')
             .select(`
-                *,
-                clinical_records:clinical_records(*),
-                opportunities:opportunities(*)
+                    *,
+                    clinical_records: clinical_records(*),
+                        opportunities: opportunities(*)
             `)
-            .eq('user_id', userId)
-            .or(`name.ilike.%${query}%,phone.ilike.%${query}%,email.ilike.%${query}%,history.ilike.%${query}%`)
-            .order('created_at', { ascending: false })
-            .limit(50);
+            `)
+            .eq('tenant_id', tenantId)
+    .or(`name.ilike.%${query}%,phone.ilike.%${query}%,email.ilike.%${query}%,history.ilike.%${query}%`)
+    .order('created_at', { ascending: false })
+    .limit(50);
 
-        if (error) {
-            logger.error('Search error:', error);
-            return res.status(500).json({ error: 'Error searching patients' });
-        }
+if (error) {
+    logger.error('Search error:', error);
+    return res.status(500).json({ error: 'Error searching patients' });
+}
 
-        logger.info('Search completed', { found: patients?.length || 0 });
-        res.json(patients || []);
+logger.info('Search completed', { found: patients?.length || 0 });
+res.json(patients || []);
     } catch (error: any) {
-        logger.error('Search error:', error);
-        res.status(500).json({ error: 'Error searching patients' });
-    }
+    logger.error('Search error:', error);
+    res.status(500).json({ error: 'Error searching patients' });
+}
 };
 
 export const importPatients = async (req: AuthRequest, res: Response) => {
@@ -225,7 +233,9 @@ export const importPatients = async (req: AuthRequest, res: Response) => {
             phone: p.phone || p.Telefone || p.TELEFONE || p.Celular || p.CELULAR || '',
             email: p.email || p.Email || p.EMAIL || p['E-mail'] || '',
             history: p.history || p.Historico || p.HISTORICO || p.Observacoes || p.OBSERVACOES || '',
+            history: p.history || p.Historico || p.HISTORICO || p.Observacoes || p.OBSERVACOES || '',
             user_id: userId,
+            tenant_id: tenantId,
         })).filter(p => p.name && p.phone); // Only import if has name and phone
 
         if (validPatients.length === 0) {

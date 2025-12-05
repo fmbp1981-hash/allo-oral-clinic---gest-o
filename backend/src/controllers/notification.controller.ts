@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import notificationService from '../services/notification.service';
 import logger from '../lib/logger';
 import { z } from 'zod';
+import { AuthRequest } from '../middlewares/auth.middleware';
 
 // Schema de validação
 const createNotificationSchema = z.object({
@@ -15,12 +16,13 @@ const createNotificationSchema = z.object({
  * GET /api/notifications
  * Busca todas as notificações do usuário
  */
-export const getNotifications = async (req: Request, res: Response): Promise<void> => {
+export const getNotifications = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-        const userId = req.query.userId as string | undefined;
+        const userId = req.user?.userId;
+        const tenantId = req.user?.tenantId || ''; // Should handle empty tenantId? maybe throw
         const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
 
-        const notifications = await notificationService.getUserNotifications(userId, limit);
+        const notifications = await notificationService.getUserNotifications(userId, tenantId, limit);
 
         logger.info(`${notifications.length} notificações retornadas${userId ? ` para usuário ${userId}` : ''}`);
 
@@ -42,11 +44,12 @@ export const getNotifications = async (req: Request, res: Response): Promise<voi
  * GET /api/notifications/unread
  * Busca notificações não lidas
  */
-export const getUnreadNotifications = async (req: Request, res: Response): Promise<void> => {
+export const getUnreadNotifications = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-        const userId = req.query.userId as string | undefined;
+        const userId = req.user?.userId;
+        const tenantId = req.user?.tenantId || '';
 
-        const notifications = await notificationService.getUnreadNotifications(userId);
+        const notifications = await notificationService.getUnreadNotifications(userId, tenantId);
 
         logger.info(`${notifications.length} notificações não lidas retornadas${userId ? ` para usuário ${userId}` : ''}`);
 
@@ -68,8 +71,14 @@ export const getUnreadNotifications = async (req: Request, res: Response): Promi
  * POST /api/notifications
  * Cria uma nova notificação
  */
-export const createNotification = async (req: Request, res: Response): Promise<void> => {
+export const createNotification = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
+        const tenantId = req.user?.tenantId;
+        if (!tenantId) {
+            res.status(401).json({ error: 'Unauthorized' });
+            return;
+        }
+
         // Validação
         const validationResult = createNotificationSchema.safeParse(req.body);
 
@@ -85,7 +94,7 @@ export const createNotification = async (req: Request, res: Response): Promise<v
         const data = validationResult.data;
 
         // Criar notificação
-        const notification = await notificationService.createNotification(data);
+        const notification = await notificationService.createNotification({ ...data, tenantId });
 
         if (!notification) {
             res.status(500).json({
@@ -146,11 +155,12 @@ export const markAsRead = async (req: Request, res: Response): Promise<void> => 
  * PATCH /api/notifications/mark-all-read
  * Marca todas as notificações como lidas
  */
-export const markAllAsRead = async (req: Request, res: Response): Promise<void> => {
+export const markAllAsRead = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-        const userId = req.query.userId as string | undefined;
+        const userId = req.user?.userId;
+        const tenantId = req.user?.tenantId || '';
 
-        const success = await notificationService.markAllAsRead(userId);
+        const success = await notificationService.markAllAsRead(userId, tenantId);
 
         if (!success) {
             res.status(500).json({
@@ -208,12 +218,13 @@ export const deleteNotification = async (req: Request, res: Response): Promise<v
  * GET /api/notifications/stats
  * Retorna estatísticas de notificações
  */
-export const getNotificationStats = async (req: Request, res: Response): Promise<void> => {
+export const getNotificationStats = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-        const userId = req.query.userId as string | undefined;
+        const userId = req.user?.userId;
+        const tenantId = req.user?.tenantId || '';
 
-        const allNotifications = await notificationService.getUserNotifications(userId, 1000);
-        const unreadNotifications = await notificationService.getUnreadNotifications(userId);
+        const allNotifications = await notificationService.getUserNotifications(userId, tenantId, 1000);
+        const unreadNotifications = await notificationService.getUnreadNotifications(userId, tenantId);
 
         const connectedUsers = notificationService.getConnectedUsersCount();
         const isConnected = userId ? notificationService.isUserConnected(userId) : false;
