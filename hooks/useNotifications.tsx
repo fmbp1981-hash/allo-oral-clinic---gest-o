@@ -14,10 +14,11 @@ const NotificationsContext = createContext<NotificationsContextType | undefined>
 
 interface NotificationsProviderProps {
   userId?: string;
+  tenantId?: string;
   children: ReactNode;
 }
 
-export const NotificationsProvider: React.FC<NotificationsProviderProps> = ({ userId, children }) => {
+export const NotificationsProvider: React.FC<NotificationsProviderProps> = ({ userId, tenantId, children }) => {
   const toast = useToast();
   const [socket, setSocket] = useState<Socket | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -42,9 +43,13 @@ export const NotificationsProvider: React.FC<NotificationsProviderProps> = ({ us
       setIsConnected(true);
 
       // Autenticar com userId se disponível
-      if (userId) {
-        newSocket.emit('authenticate', userId);
-        console.log(`🔐 Authenticated as user: ${userId}`);
+      if (userId && tenantId) {
+        newSocket.emit('authenticate', { userId, tenantId });
+        console.log(`🔐 Authenticated as user: ${userId} (Tenant: ${tenantId})`);
+      } else if (userId) {
+        // Fallback for backward compatibility or when tenantId is not yet available
+        console.warn('⚠️ Authenticating without tenantId - some features may be limited');
+        newSocket.emit('authenticate', { userId, tenantId: '' });
       }
     });
 
@@ -97,7 +102,7 @@ export const NotificationsProvider: React.FC<NotificationsProviderProps> = ({ us
       console.log('🔌 Disconnecting Socket.io');
       newSocket.disconnect();
     };
-  }, [userId]);
+  }, [userId, tenantId]);
 
   const markAsRead = (notificationId: string) => {
     if (!socket) {

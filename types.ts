@@ -20,6 +20,7 @@ export interface User {
   clinicName: string;
   avatarUrl?: string;
   role?: 'admin' | 'user'; // Role para controle de permissões
+  tenantId?: string; // Multi-tenancy support
 }
 
 export interface Patient {

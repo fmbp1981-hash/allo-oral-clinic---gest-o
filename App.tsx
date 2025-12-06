@@ -1014,7 +1014,7 @@ const App = () => {
   }, []);
 
   return (
-    <NotificationsProvider userId={user?.id}>
+    <NotificationsProvider userId={user?.id} tenantId={user?.tenantId}>
       <AppContent user={user} setUser={setUser} />
     </NotificationsProvider>
   );
