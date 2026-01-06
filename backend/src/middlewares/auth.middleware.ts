@@ -15,7 +15,11 @@ export const authenticate = (req: AuthRequest, res: Response, next: NextFunction
     const [, token] = authHeader.split(' ');
 
     try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as { userId: string; tenantId: string };
+        const jwtSecret = process.env.JWT_SECRET;
+        if (!jwtSecret) {
+            return res.status(500).json({ error: 'Server configuration error' });
+        }
+        const decoded = jwt.verify(token, jwtSecret) as { userId: string; tenantId: string };
         req.user = decoded;
         next();
     } catch (error) {

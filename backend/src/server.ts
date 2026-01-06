@@ -18,6 +18,19 @@ import whatsappRoutes from './routes/whatsapp.routes.simple'; // TEMP: usando ve
 import { generalLimiter } from './middlewares/rateLimiter.middleware';
 import logger, { morganStream } from './lib/logger';
 import notificationService from './services/notification.service';
+import { sentryService } from './lib/sentry';
+
+const app = express();
+const PORT = process.env.PORT || 3001;
+
+// Inicializar Sentry (deve ser antes de qualquer middleware)
+sentryService.initialize(app);
+
+// Sentry request handler (deve ser o primeiro middleware)
+app.use(sentryService.requestHandler());
+
+// Sentry tracing handler
+app.use(sentryService.tracingHandler());
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -112,6 +125,9 @@ app.use((req, res) => {
     });
 });
 
+// Sentry error handler (deve ser antes do error handler personalizado)
+app.use(sentryService.errorHandler());
+
 // Error Handler
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
     logger.error('Unhandled error:', {
@@ -137,4 +153,7 @@ httpServer.listen(PORT, () => {
     logger.info(`⏱️  Rate limiting active`);
     logger.info(`📝 Structured logging with Winston enabled`);
     logger.info(`🔌 Socket.io initialized and ready`);
+    if (sentryService.isEnabled()) {
+        logger.info(`🐛 Sentry error tracking enabled`);
+    }
 });

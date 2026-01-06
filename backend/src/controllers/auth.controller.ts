@@ -4,9 +4,19 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import logger from '../lib/logger';
 import crypto from 'crypto';
+import { emailService } from '../lib/email';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'secret';
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'refresh-secret';
+// Validação de variáveis de ambiente obrigatórias
+const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
+
+if (!JWT_SECRET || JWT_SECRET.length < 32) {
+    throw new Error('JWT_SECRET must be set and at least 32 characters long');
+}
+
+if (!JWT_REFRESH_SECRET || JWT_REFRESH_SECRET.length < 32) {
+    throw new Error('JWT_REFRESH_SECRET must be set and at least 32 characters long');
+}
 
 // Helper to generate tokens
 const generateTokens = (userId: string, tenantId: string) => {
@@ -256,16 +266,29 @@ export const requestPasswordReset = async (req: Request, res: Response) => {
             if (updateError) {
                 logger.error('Error storing reset token:', updateError);
             } else {
-                // TODO: Send email with reset token
-                // For now, log it (in production, use an email service)
+                // Log password reset request (sem token em produção)
                 logger.info('Password reset requested', {
                     email,
-                    resetToken, // Remove this in production!
-                    expiresAt
+                    expiresAt,
+                    ...(process.env.NODE_ENV === 'development' && { resetToken })
                 });
 
-                // In development, you can see the token in logs
-                console.log(`\n🔑 PASSWORD RESET TOKEN FOR ${email}: ${resetToken}\n`);
+                // Enviar email de reset de senha
+                const emailSent = await emailService.sendPasswordResetEmail(
+                    user.email,
+                    resetToken,
+                    user.name
+                );
+
+                if (emailSent) {
+                    logger.info('Password reset email sent successfully', { email });
+                } else {
+                    logger.warn('Failed to send password reset email', { email });
+                    // Em desenvolvimento, mostrar token no console se email não foi enviado
+                    if (process.env.NODE_ENV === 'development') {
+                        console.log(`\n🔑 PASSWORD RESET TOKEN FOR ${email}: ${resetToken}\n`);
+                    }
+                }
             }
         } else {
             // Log suspicious activity

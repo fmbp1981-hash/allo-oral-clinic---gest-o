@@ -6,7 +6,9 @@ import { AuthRequest } from '../middlewares/auth.middleware';
 export const getPatients = async (req: AuthRequest, res: Response) => {
     try {
         const userId = req.user?.userId;
-        if (!userId) {
+        const tenantId = req.user?.tenantId;
+        
+        if (!userId || !tenantId) {
             return res.status(401).json({ error: 'Unauthorized' });
         }
 
@@ -16,7 +18,6 @@ export const getPatients = async (req: AuthRequest, res: Response) => {
                 *,
                 clinical_records:clinical_records(*),
                 opportunities:opportunities(*)
-            `)
             `)
             .eq('tenant_id', tenantId)
             .order('created_at', { ascending: false });
@@ -36,7 +37,9 @@ export const getPatients = async (req: AuthRequest, res: Response) => {
 export const createPatient = async (req: AuthRequest, res: Response) => {
     try {
         const userId = req.user?.userId;
-        if (!userId) {
+        const tenantId = req.user?.tenantId;
+        
+        if (!userId || !tenantId) {
             return res.status(401).json({ error: 'Unauthorized' });
         }
 
@@ -48,7 +51,6 @@ export const createPatient = async (req: AuthRequest, res: Response) => {
                 name,
                 phone,
                 email,
-                history: history || '',
                 history: history || '',
                 user_id: userId,
                 tenant_id: tenantId,
@@ -72,7 +74,9 @@ export const createPatient = async (req: AuthRequest, res: Response) => {
 export const getPatientById = async (req: AuthRequest, res: Response) => {
     try {
         const userId = req.user?.userId;
-        if (!userId) {
+        const tenantId = req.user?.tenantId;
+        
+        if (!userId || !tenantId) {
             return res.status(401).json({ error: 'Unauthorized' });
         }
 
@@ -81,12 +85,12 @@ export const getPatientById = async (req: AuthRequest, res: Response) => {
         const { data: patient, error } = await supabase
             .from('patients')
             .select(`
-            *,
-            clinical_records: clinical_records(*),
-                opportunities: opportunities(*)
-                    `)
+                *,
+                clinical_records:clinical_records(*),
+                opportunities:opportunities(*)
+            `)
             .eq('id', id)
-            .eq('tenant_id', tenantId) // Scope by tenant
+            .eq('tenant_id', tenantId)
             .single();
 
         if (error || !patient) {
@@ -104,7 +108,9 @@ export const getPatientById = async (req: AuthRequest, res: Response) => {
 export const updatePatient = async (req: AuthRequest, res: Response) => {
     try {
         const userId = req.user?.userId;
-        if (!userId) {
+        const tenantId = req.user?.tenantId;
+        
+        if (!userId || !tenantId) {
             return res.status(401).json({ error: 'Unauthorized' });
         }
 
@@ -119,8 +125,6 @@ export const updatePatient = async (req: AuthRequest, res: Response) => {
 
         const { data: patient, error } = await supabase
             .from('patients')
-            .update(updateData)
-            .eq('id', id)
             .update(updateData)
             .eq('id', id)
             .eq('tenant_id', tenantId)
@@ -143,7 +147,9 @@ export const updatePatient = async (req: AuthRequest, res: Response) => {
 export const deletePatient = async (req: AuthRequest, res: Response) => {
     try {
         const userId = req.user?.userId;
-        if (!userId) {
+        const tenantId = req.user?.tenantId;
+        
+        if (!userId || !tenantId) {
             return res.status(401).json({ error: 'Unauthorized' });
         }
 
@@ -151,8 +157,6 @@ export const deletePatient = async (req: AuthRequest, res: Response) => {
 
         const { error } = await supabase
             .from('patients')
-            .delete()
-            .eq('id', id)
             .delete()
             .eq('id', id)
             .eq('tenant_id', tenantId);
@@ -173,7 +177,9 @@ export const deletePatient = async (req: AuthRequest, res: Response) => {
 export const searchPatients = async (req: AuthRequest, res: Response) => {
     try {
         const userId = req.user?.userId;
-        if (!userId) {
+        const tenantId = req.user?.tenantId;
+        
+        if (!userId || !tenantId) {
             return res.status(401).json({ error: 'Unauthorized' });
         }
 
@@ -185,37 +191,37 @@ export const searchPatients = async (req: AuthRequest, res: Response) => {
 
         logger.info('Searching patients', { query });
 
-        // Search in name, phone, email, and history
         const { data: patients, error } = await supabase
             .from('patients')
             .select(`
-                    *,
-                    clinical_records: clinical_records(*),
-                        opportunities: opportunities(*)
-            `)
+                *,
+                clinical_records:clinical_records(*),
+                opportunities:opportunities(*)
             `)
             .eq('tenant_id', tenantId)
-    .or(`name.ilike.%${query}%,phone.ilike.%${query}%,email.ilike.%${query}%,history.ilike.%${query}%`)
-    .order('created_at', { ascending: false })
-    .limit(50);
+            .or(`name.ilike.%${query}%,phone.ilike.%${query}%,email.ilike.%${query}%,history.ilike.%${query}%`)
+            .order('created_at', { ascending: false })
+            .limit(50);
 
-if (error) {
-    logger.error('Search error:', error);
-    return res.status(500).json({ error: 'Error searching patients' });
-}
+        if (error) {
+            logger.error('Search error:', error);
+            return res.status(500).json({ error: 'Error searching patients' });
+        }
 
-logger.info('Search completed', { found: patients?.length || 0 });
-res.json(patients || []);
+        logger.info('Search completed', { found: patients?.length || 0 });
+        res.json(patients || []);
     } catch (error: any) {
-    logger.error('Search error:', error);
-    res.status(500).json({ error: 'Error searching patients' });
-}
+        logger.error('Search error:', error);
+        res.status(500).json({ error: 'Error searching patients' });
+    }
 };
 
 export const importPatients = async (req: AuthRequest, res: Response) => {
     try {
         const userId = req.user?.userId;
-        if (!userId) {
+        const tenantId = req.user?.tenantId;
+        
+        if (!userId || !tenantId) {
             return res.status(401).json({ error: 'Unauthorized' });
         }
 
@@ -227,22 +233,19 @@ export const importPatients = async (req: AuthRequest, res: Response) => {
 
         logger.info('Importing patients', { count: patients.length, userId });
 
-        // Validate and prepare patients data
         const validPatients = patients.map((p: any) => ({
             name: p.name || p.Nome || p.NOME || '',
             phone: p.phone || p.Telefone || p.TELEFONE || p.Celular || p.CELULAR || '',
             email: p.email || p.Email || p.EMAIL || p['E-mail'] || '',
             history: p.history || p.Historico || p.HISTORICO || p.Observacoes || p.OBSERVACOES || '',
-            history: p.history || p.Historico || p.HISTORICO || p.Observacoes || p.OBSERVACOES || '',
             user_id: userId,
             tenant_id: tenantId,
-        })).filter(p => p.name && p.phone); // Only import if has name and phone
+        })).filter((p: any) => p.name && p.phone);
 
         if (validPatients.length === 0) {
             return res.status(400).json({ error: 'No valid patients found in file' });
         }
 
-        // Insert patients in batches of 100
         const batchSize = 100;
         let imported = 0;
         const errors: string[] = [];
