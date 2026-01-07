@@ -32,9 +32,6 @@ app.use(sentryService.requestHandler());
 // Sentry tracing handler
 app.use(sentryService.tracingHandler());
 
-const app = express();
-const PORT = process.env.PORT || 3001;
-
 // Criar servidor HTTP (necessário para Socket.io)
 const httpServer = createServer(app);
 
@@ -73,6 +70,13 @@ app.use(cors({
     origin: (origin, callback) => {
         // Allow requests with no origin (like mobile apps or curl requests)
         if (!origin) return callback(null, true);
+
+        // Developer-friendly local origins (avoid common "Failed to fetch" CORS issues)
+        if ((process.env.NODE_ENV || 'development') !== 'production') {
+            const isLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+            if (isLocalhost) return callback(null, true);
+        }
+
         if (allowedOrigins.indexOf(origin) !== -1) {
             callback(null, true);
         } else {

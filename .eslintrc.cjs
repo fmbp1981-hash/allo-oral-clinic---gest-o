@@ -21,6 +21,8 @@ module.exports = {
         '*.config.ts',
         'playwright-report',
         'test-results',
+        '.next',
+        'out',
     ],
     parser: '@typescript-eslint/parser',
     parserOptions: {

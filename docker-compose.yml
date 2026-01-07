@@ -58,7 +58,7 @@ services:
       dockerfile: Dockerfile
       args:
         NODE_VERSION: 20
-        VITE_API_URL: ${VITE_API_URL:-http://localhost:3001}
+        VITE_API_URL: ${VITE_API_URL:-/api}
     image: clinicaflow-frontend:latest
     container_name: clinicaflow-frontend
     restart: unless-stopped

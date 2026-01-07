@@ -1,6 +1,30 @@
 import { Opportunity, OpportunityStatus, Patient, User, Notification, AppSettings } from '../types';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const normalizeApiBase = (raw?: string): string => {
+  const value = (raw ?? '').trim();
+
+  // Default to same-origin; dev is proxied by Vite, prod is proxied by Nginx.
+  if (!value) return '/api';
+
+  // Relative paths are allowed (recommended: /api)
+  if (value.startsWith('/')) return value.replace(/\/+$/, '') || '/api';
+
+  // Absolute URL: if it doesn't include a path, assume it needs the /api prefix.
+  try {
+    const url = new URL(value);
+    const pathname = (url.pathname || '').replace(/\/+$/, '');
+    if (pathname === '' || pathname === '/') {
+      url.pathname = '/api';
+      return url.toString().replace(/\/+$/, '');
+    }
+  } catch {
+    // Ignore parsing errors; fall back to trimmed value.
+  }
+
+  return value.replace(/\/+$/, '');
+};
+
+const API_URL = normalizeApiBase(process.env.NEXT_PUBLIC_API_URL);
 
 // Helper function to get auth token
 const getAuthToken = (): string | null => {
@@ -381,13 +405,17 @@ export const getSettings = async (): Promise<AppSettings> => {
   }
 };
 
-export const saveSettings = async (settings: AppSettings): Promise<void> => {
+export const saveSettings = async (settings: Partial<AppSettings>): Promise<void> => {
   try {
+    // Merge with existing settings to ensure we have all required fields
+    const existingSettings = await getSettings();
+    const mergedSettings = { ...existingSettings, ...settings };
+    
     await fetchWithAuth('/settings', {
       method: 'POST',
-      body: JSON.stringify(settings),
+      body: JSON.stringify(mergedSettings),
     });
-    localStorage.setItem('clinicaflow_settings', JSON.stringify(settings));
+    localStorage.setItem('clinicaflow_settings', JSON.stringify(mergedSettings));
   } catch (error) {
     console.error('Save settings error:', error);
     throw error;

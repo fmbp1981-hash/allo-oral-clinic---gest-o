@@ -25,11 +25,31 @@ export const NotificationsProvider: React.FC<NotificationsProviderProps> = ({ us
   const [unreadCount, setUnreadCount] = useState(0);
   const [isConnected, setIsConnected] = useState(false);
 
+  const normalizeApiBase = (raw?: string): string => {
+    const value = (raw ?? '').trim();
+    if (!value) return '/api';
+    if (value.startsWith('/')) return value.replace(/\/+$/, '') || '/api';
+    try {
+      const url = new URL(value);
+      const pathname = (url.pathname || '').replace(/\/+$/, '');
+      if (pathname === '' || pathname === '/') {
+        url.pathname = '/api';
+        return url.toString().replace(/\/+$/, '');
+      }
+    } catch {
+      // Ignore parsing errors; fall back to trimmed value.
+    }
+    return value.replace(/\/+$/, '');
+  };
+
   useEffect(() => {
     // Conectar ao Socket.io
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-    // Remove /api do final para Socket.io
-    const socketUrl = apiUrl.replace(/\/api$/, '');
+    const apiBase = normalizeApiBase(process.env.NEXT_PUBLIC_API_URL);
+    // Socket.io roda na mesma origem do frontend quando usamos /api proxy.
+    const socketUrl = apiBase.startsWith('/')
+      ? window.location.origin
+      : apiBase.replace(/\/api\/?$/, '');
+
     const newSocket = io(socketUrl, {
       transports: ['websocket', 'polling'],
       reconnection: true,
@@ -67,9 +87,7 @@ export const NotificationsProvider: React.FC<NotificationsProviderProps> = ({ us
       setUnreadCount(prev => prev + 1);
 
       // Mostrar toast com a nova notificação
-      toast.success(notification.message, {
-        title: notification.title,
-      });
+      toast.success(`${notification.title}: ${notification.message}`);
     });
 
     // Event: Lista de notificações não lidas (ao conectar)

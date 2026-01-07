@@ -115,7 +115,9 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ opportunities, onUpdat
                         {opp.keywordFound}
                       </span>
                       {opp.notes && (
-                        <AlignLeft size={12} className="text-gray-400 dark:text-gray-500" title="Possui anotações" />
+                        <span title="Possui anotações">
+                          <AlignLeft size={12} className="text-gray-400 dark:text-gray-500" />
+                        </span>
                       )}
                     </div>
 

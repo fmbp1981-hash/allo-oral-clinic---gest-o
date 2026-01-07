@@ -311,10 +311,12 @@ docker logs clinicaflow-backend --tail 50
 **Solução**: Verifique configuração no `.env`:
 
 ```env
-# Para comunicação interna Docker (build time)
-VITE_API_URL=http://backend:3001
+# IMPORTANTE: `VITE_API_URL` é embutida no bundle e roda no navegador.
+# Portanto, não pode usar o DNS interno do Docker (ex: http://backend:3001).
+# Recomendado: usar a mesma origem e deixar o Nginx fazer o proxy para o backend.
+VITE_API_URL=/api
 
-# Para acesso externo (navegador)
+# Origem do frontend (usada no CORS do backend)
 FRONTEND_URL=http://localhost
 ```
 
@@ -381,7 +383,10 @@ docker logs clinicaflow-backend | Select-String "GET\|POST\|PUT\|DELETE"
 ```env
 NODE_ENV=production
 FRONTEND_URL=https://seu-dominio.com
-VITE_API_URL=https://api.seu-dominio.com
+# Se o backend estiver atrás do mesmo domínio via reverse-proxy:
+VITE_API_URL=/api
+# Se o backend estiver em outro host/domínio, inclua o prefixo /api:
+# VITE_API_URL=https://api.seu-dominio.com/api
 ```
 
 ### HTTPS / SSL

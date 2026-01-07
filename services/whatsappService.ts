@@ -39,15 +39,15 @@ const getWhatsAppConfig = (): WhatsAppConfig => {
 
     // Fallback to environment variables
     return {
-        provider: (import.meta.env.VITE_WHATSAPP_PROVIDER as WhatsAppProvider) || 'evolution',
-        evolutionApiUrl: import.meta.env.VITE_WHATSAPP_EVOLUTION_BASE_URL || 'http://localhost:8080',
-        evolutionInstanceName: import.meta.env.VITE_WHATSAPP_EVOLUTION_INSTANCE_NAME || 'clinicaflow',
-        evolutionApiKey: import.meta.env.VITE_WHATSAPP_EVOLUTION_API_KEY || '',
-        businessCloudPhoneNumberId: import.meta.env.VITE_WHATSAPP_BUSINESS_PHONE_ID || '',
-        businessCloudAccessToken: import.meta.env.VITE_WHATSAPP_BUSINESS_TOKEN || '',
-        zApiUrl: import.meta.env.VITE_WHATSAPP_ZAPI_URL || '',
-        zApiInstanceId: import.meta.env.VITE_WHATSAPP_ZAPI_INSTANCE || '',
-        zApiToken: import.meta.env.VITE_WHATSAPP_ZAPI_TOKEN || '',
+        provider: (process.env.NEXT_PUBLIC_WHATSAPP_PROVIDER as WhatsAppProvider) || 'evolution',
+        evolutionApiUrl: process.env.NEXT_PUBLIC_WHATSAPP_EVOLUTION_BASE_URL || 'http://localhost:8080',
+        evolutionInstanceName: process.env.NEXT_PUBLIC_WHATSAPP_EVOLUTION_INSTANCE_NAME || 'clinicaflow',
+        evolutionApiKey: process.env.NEXT_PUBLIC_WHATSAPP_EVOLUTION_API_KEY || '',
+        businessCloudPhoneNumberId: process.env.NEXT_PUBLIC_WHATSAPP_BUSINESS_PHONE_ID || '',
+        businessCloudAccessToken: process.env.NEXT_PUBLIC_WHATSAPP_BUSINESS_TOKEN || '',
+        zApiUrl: process.env.NEXT_PUBLIC_WHATSAPP_ZAPI_URL || '',
+        zApiInstanceId: process.env.NEXT_PUBLIC_WHATSAPP_ZAPI_INSTANCE || '',
+        zApiToken: process.env.NEXT_PUBLIC_WHATSAPP_ZAPI_TOKEN || '',
     };
 };
 

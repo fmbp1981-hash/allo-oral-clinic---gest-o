@@ -24,8 +24,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
 
   useEffect(() => {
     if (isOpen) {
-      const settings = getSettings();
-      setTemplate(settings.messageTemplate || 'Olá {name}, somos da Allo Oral Clinic. Verificamos seu histórico sobre "{keyword}" e gostaríamos de saber como está a saúde do seu sorriso. Podemos agendar uma avaliação?');
+      // Load settings from API (async)
+      getSettings().then((settings) => {
+        setTemplate(settings.messageTemplate || 'Olá {name}, somos da Allo Oral Clinic. Verificamos seu histórico sobre "{keyword}" e gostaríamos de saber como está a saúde do seu sorriso. Podemos agendar uma avaliação?');
+      }).catch((error) => {
+        console.warn('Failed to load settings:', error);
+        // Use default template on error
+        setTemplate('Olá {name}, somos da Allo Oral Clinic. Verificamos seu histórico sobre "{keyword}" e gostaríamos de saber como está a saúde do seu sorriso. Podemos agendar uma avaliação?');
+      });
 
       // Load WhatsApp config from localStorage
       const whatsappConfig = localStorage.getItem('whatsapp_config');
