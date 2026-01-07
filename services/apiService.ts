@@ -72,7 +72,11 @@ export const loginUser = async (email: string, password: string): Promise<User> 
     });
 
     if (!response.ok) {
-      throw new Error('Credenciais inválidas');
+      const errorData = await response.json().catch(() => ({}));
+      if (response.status === 401) {
+        throw new Error('Email ou senha incorretos');
+      }
+      throw new Error(errorData.error || 'Erro ao fazer login. Tente novamente.');
     }
 
     const data = await response.json();

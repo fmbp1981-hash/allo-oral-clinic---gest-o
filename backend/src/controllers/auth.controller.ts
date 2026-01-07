@@ -59,8 +59,8 @@ export const login = async (req: Request, res: Response) => {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
-        // Generate tokens
-        const { accessToken, refreshToken } = generateTokens(user.id);
+        // Generate tokens (use user's tenant_id or user.id as fallback for single-tenant)
+        const { accessToken, refreshToken } = generateTokens(user.id, user.tenant_id || user.id);
 
         // Store refresh token hash in DB
         const refreshTokenHash = hashToken(refreshToken);
@@ -128,8 +128,8 @@ export const register = async (req: Request, res: Response) => {
             return res.status(500).json({ error: 'Error creating user' });
         }
 
-        // Generate tokens
-        const { accessToken, refreshToken } = generateTokens(user.id);
+        // Generate tokens (use user's tenant_id or user.id as fallback for single-tenant)
+        const { accessToken, refreshToken } = generateTokens(user.id, user.tenant_id || user.id);
 
         // Store refresh token hash in DB
         const refreshTokenHash = hashToken(refreshToken);
