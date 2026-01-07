@@ -27,6 +27,32 @@ export const authLimiter = rateLimit({
   }
 });
 
+export const passwordResetRequestLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res, _next, options) => {
+    logger.warn(`Password reset request rate limit exceeded for IP: ${req.ip}`);
+    res.status(options.statusCode).json({
+      error: 'Muitas solicitações de recuperação de senha. Tente novamente em 15 minutos.'
+    });
+  }
+});
+
+export const passwordResetConfirmLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res, _next, options) => {
+    logger.warn(`Password reset confirm rate limit exceeded for IP: ${req.ip}`);
+    res.status(options.statusCode).json({
+      error: 'Muitas tentativas de redefinição de senha. Tente novamente em 15 minutos.'
+    });
+  }
+});
+
 export const searchLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
   max: 30, // Limit search requests

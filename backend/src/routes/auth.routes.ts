@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import * as AuthController from '../controllers/auth.controller';
-import { authLimiter } from '../middlewares/rateLimiter.middleware';
+import { authLimiter, passwordResetConfirmLimiter, passwordResetRequestLimiter } from '../middlewares/rateLimiter.middleware';
 import { authenticate } from '../middlewares/auth.middleware';
 import { validate } from '../middlewares/validate.middleware';
 import { loginSchema, registerSchema, refreshSchema } from '../schemas/auth.schema';
@@ -14,7 +14,7 @@ router.post('/refresh', authLimiter, validate(refreshSchema), AuthController.ref
 router.post('/logout', authenticate, AuthController.logout);
 
 // Password reset endpoints
-router.post('/request-password-reset', authLimiter, AuthController.requestPasswordReset);
-router.post('/reset-password', authLimiter, AuthController.resetPassword);
+router.post('/request-password-reset', passwordResetRequestLimiter, AuthController.requestPasswordReset);
+router.post('/reset-password', passwordResetConfirmLimiter, AuthController.resetPassword);
 
 export default router;

@@ -71,7 +71,7 @@ async function checkPatients() {
     });
 
     // Check specifically for the admin user
-    const ADMIN_EMAIL = 'fmbp1981@gmail.com';
+    const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || 'admin@example.com').trim();
     const adminUser = users?.find(u => u.email === ADMIN_EMAIL);
     if (adminUser) {
         const adminCount = patients.filter(p => p.user_id === adminUser.id).length;

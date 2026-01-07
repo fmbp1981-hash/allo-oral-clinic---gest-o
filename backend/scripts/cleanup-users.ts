@@ -17,7 +17,7 @@ if (!SUPABASE_URL || !SUPABASE_KEY) {
 // Initialize Supabase client
 const supabase = createClient(SUPABASE_URL!, SUPABASE_KEY!);
 
-const ADMIN_EMAIL = 'fmbp1981@gmail.com';
+const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || 'admin@example.com').trim();
 
 async function cleanupUsers() {
     console.log('🧹 Starting user cleanup and reassignment...');

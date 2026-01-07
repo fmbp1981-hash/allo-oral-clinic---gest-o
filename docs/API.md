@@ -61,8 +61,8 @@ Autentica um usuário.
 **Request Body:**
 ```json
 {
-    "email": "admin@allooral.com",
-    "password": "admin123"
+    "email": "admin@exemplo.com",
+    "password": "SUA_SENHA"
 }
 ```
 
@@ -72,7 +72,7 @@ Autentica um usuário.
     "user": {
         "id": "uuid",
         "name": "Admin",
-        "email": "admin@allooral.com",
+        "email": "admin@exemplo.com",
         "clinic_name": "Allo Oral Clinic",
         "avatar_url": null,
         "role": "admin",
@@ -164,7 +164,7 @@ Solicita reset de senha (envia código de 6 dígitos).
 **Request Body:**
 ```json
 {
-    "email": "admin@allooral.com"
+    "email": "admin@exemplo.com"
 }
 ```
 
@@ -184,7 +184,7 @@ Reseta a senha com o código recebido.
 **Request Body:**
 ```json
 {
-    "email": "admin@allooral.com",
+    "email": "admin@exemplo.com",
     "resetToken": "123456",
     "newPassword": "novaSenha123"
 }
@@ -782,7 +782,7 @@ Busca perfil do usuário logado.
 {
     "id": "uuid",
     "name": "Admin",
-    "email": "admin@allooral.com",
+    "email": "admin@exemplo.com",
     "clinic_name": "Allo Oral Clinic",
     "avatar_url": null,
     "role": "admin",
@@ -1014,7 +1014,7 @@ socket.emit('join:room', { room: 'patient:uuid' });
 ```bash
 curl -X POST http://localhost:3001/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"admin@allooral.com","password":"admin123"}'
+    -d '{"email":"admin@exemplo.com","password":"SUA_SENHA"}'
 ```
 
 ### cURL - Buscar Pacientes

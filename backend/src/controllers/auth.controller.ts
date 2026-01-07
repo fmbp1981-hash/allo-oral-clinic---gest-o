@@ -240,6 +240,10 @@ export const requestPasswordReset = async (req: Request, res: Response) => {
     try {
         const { email } = req.body;
 
+        if (!email || typeof email !== 'string') {
+            return res.status(400).json({ error: 'Email is required' });
+        }
+
         // Check if user exists
         const { data: user, error } = await supabase
             .from('users')
@@ -250,7 +254,9 @@ export const requestPasswordReset = async (req: Request, res: Response) => {
         // Always return success to prevent email enumeration attacks
         // But only actually send email if user exists
         if (!error && user) {
-            const resetToken = crypto.randomInt(100000, 999999).toString();
+            // Use a high-entropy token to reduce brute-force risk.
+            // Token will be delivered via email link and can be pasted as fallback.
+            const resetToken = crypto.randomBytes(32).toString('hex');
             const resetTokenHash = hashToken(resetToken);
             const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
 
@@ -266,12 +272,8 @@ export const requestPasswordReset = async (req: Request, res: Response) => {
             if (updateError) {
                 logger.error('Error storing reset token:', updateError);
             } else {
-                // Log password reset request (sem token em produção)
-                logger.info('Password reset requested', {
-                    email,
-                    expiresAt,
-                    ...(process.env.NODE_ENV === 'development' && { resetToken })
-                });
+                // Log request without leaking sensitive data
+                logger.info('Password reset requested', { email, expiresAt });
 
                 // Enviar email de reset de senha
                 const emailSent = await emailService.sendPasswordResetEmail(
@@ -284,10 +286,6 @@ export const requestPasswordReset = async (req: Request, res: Response) => {
                     logger.info('Password reset email sent successfully', { email });
                 } else {
                     logger.warn('Failed to send password reset email', { email });
-                    // Em desenvolvimento, mostrar token no console se email não foi enviado
-                    if (process.env.NODE_ENV === 'development') {
-                        console.log(`\n🔑 PASSWORD RESET TOKEN FOR ${email}: ${resetToken}\n`);
-                    }
                 }
             }
         } else {
@@ -316,6 +314,10 @@ export const resetPassword = async (req: Request, res: Response) => {
 
         if (newPassword.length < 6) {
             return res.status(400).json({ error: 'Password must be at least 6 characters' });
+        }
+
+        if (typeof resetToken !== 'string' || resetToken.length < 20) {
+            return res.status(400).json({ error: 'Invalid reset token' });
         }
 
         // Find user by email

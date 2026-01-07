@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Activity, Lock, Mail, Loader2, ArrowRight, User, Building2, ChevronLeft, CheckCircle, Key } from 'lucide-react';
 import { loginUser, registerUser, requestPasswordReset, resetPassword } from '../services/apiService';
 import { User as UserType } from '../types';
@@ -25,6 +25,29 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [successTitle, setSuccessTitle] = useState('');
+
+  const initialParams = useMemo(() => {
+    try {
+      return new URLSearchParams(window.location.search);
+    } catch {
+      return new URLSearchParams();
+    }
+  }, []);
+
+  useEffect(() => {
+    const initialMode = initialParams.get('mode');
+    const token = initialParams.get('token');
+    const emailParam = initialParams.get('email');
+
+    if (emailParam && !email) setEmail(emailParam);
+
+    if (initialMode === 'reset') {
+      setMode('reset');
+      if (token) setResetToken(token);
+      return;
+    }
+  }, [initialParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,13 +63,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
         const user = await registerUser(name, email, password, clinicName);
         onLogin(user);
       } else if (mode === 'forgot') {
-        const message = await requestPasswordReset(email);
-        setSuccessMsg('Código de recuperação enviado! Verifique o console do backend para o código de 6 dígitos.');
-        setMode('reset'); // Avança para tela de reset
+        await requestPasswordReset(email);
+        setSuccessTitle('E-mail enviado!');
+        setSuccessMsg('Se este e-mail existir no sistema, enviaremos um link para redefinir sua senha. Verifique sua caixa de entrada e spam.');
         setLoading(false);
         return;
       } else if (mode === 'reset') {
-        const message = await resetPassword(email, resetToken, newPassword);
+        await resetPassword(email, resetToken, newPassword);
+        setSuccessTitle('Senha redefinida!');
         setSuccessMsg('Senha redefinida com sucesso! Você já pode fazer login com sua nova senha.');
         setLoading(false);
         return;
@@ -62,6 +86,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     setMode(newMode);
     setError('');
     setSuccessMsg('');
+    setSuccessTitle('');
   };
 
   return (
@@ -94,7 +119,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
               <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
                 <CheckCircle className="h-6 w-6 text-green-600" />
               </div>
-              <h3 className="text-lg font-medium text-gray-900">E-mail enviado!</h3>
+              <h3 className="text-lg font-medium text-gray-900">{successTitle || 'Sucesso!'}</h3>
               <p className="mt-2 text-sm text-gray-500">{successMsg}</p>
               <div className="mt-6">
                 <button
@@ -177,7 +202,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                 <>
                   <div>
                     <label htmlFor="resetToken" className="block text-sm font-medium text-gray-700">
-                      Código de Recuperação
+                      Token de Recuperação
                     </label>
                     <div className="mt-1 relative rounded-md shadow-sm">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -190,12 +215,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                         value={resetToken}
                         onChange={(e) => setResetToken(e.target.value)}
                         className="bg-white text-gray-900 placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-lg py-3"
-                        placeholder="123456"
-                        maxLength={6}
-                        pattern="[0-9]{6}"
+                        placeholder="Cole o token recebido por e-mail"
+                        maxLength={128}
                       />
                     </div>
-                    <p className="mt-1 text-xs text-gray-500">Digite o código de 6 dígitos recebido</p>
+                    <p className="mt-1 text-xs text-gray-500">Você pode colar o token do link do e-mail</p>
                   </div>
 
                   <div>

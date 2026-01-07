@@ -130,9 +130,9 @@ Você deve ver as seguintes tabelas:
 Clique em cada tabela e verifique:
 
 **users** (3 registros):
-- admin@allooral.com (admin)
-- dentista@allooral.com (dentist)
-- recepcao@allooral.com (receptionist)
+- admin@exemplo.com (admin)
+- dentista@exemplo.com (dentist)
+- recepcao@exemplo.com (receptionist)
 
 **patients** (~48 registros):
 - Carlos Alberto Mendes
@@ -150,14 +150,10 @@ Clique em cada tabela e verifique:
 
 ## 🔐 Credenciais de Teste
 
-Se você executou a migration `03_seed_data.sql`, pode fazer login com:
+Não mantenha credenciais fixas em documentação.
 
-```
-Email: admin@allooral.com
-Senha: admin123
-```
-
-> ⚠️ **IMPORTANTE**: Em produção, altere essas senhas!
+- Para iniciar do zero, use o script de reset do banco no backend.
+- Depois, no login, use **"Esqueceu?"** para definir a senha via e-mail.
 
 ---
 

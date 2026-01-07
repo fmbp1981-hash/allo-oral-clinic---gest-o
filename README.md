@@ -59,9 +59,10 @@
 ## 🎯 Demonstração
 
 ```bash
-# Credenciais de teste (após aplicar seed data)
-Email: admin@allooral.com
-Senha: admin123
+# Credenciais
+# Não há credenciais padrão hardcoded.
+# Para reinicializar o admin, use o script de reset do banco no backend
+# e depois use "Esqueceu?" na tela de login para definir a senha via e-mail.
 ```
 
 **Screenshots:**
@@ -163,12 +164,10 @@ npm run dev
 
 ### 7️⃣ Acessar Sistema
 
-Abra http://localhost:3000 e faça login com:
+Abra o frontend e faça login.
 
-```
-Email: admin@allooral.com
-Senha: admin123
-```
+- Se for a primeira execução (ou após reset do banco), use **"Esqueceu?"** para definir a senha via e-mail.
+- O admin é recriado pelo script de reset do banco no backend.
 
 ---
 

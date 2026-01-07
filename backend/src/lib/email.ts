@@ -85,8 +85,9 @@ class EmailService {
         userName?: string
     ): Promise<boolean> {
         const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-        const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}`;
-        const expirationHours = 1;
+        // SPA-friendly link: keep path on '/', pass state via query params.
+        const resetUrl = `${frontendUrl}/?mode=reset&email=${encodeURIComponent(email)}&token=${encodeURIComponent(resetToken)}`;
+        const expirationMinutes = 15;
 
         const subject = 'Redefinição de Senha - Allo Oral Clinic';
 
@@ -98,7 +99,7 @@ Recebemos uma solicitação para redefinir a senha da sua conta no Allo Oral Cli
 Para redefinir sua senha, acesse o link abaixo:
 ${resetUrl}
 
-Este link expira em ${expirationHours} hora(s).
+Este link expira em ${expirationMinutes} minuto(s).
 
 Se você não solicitou esta redefinição, ignore este email. Sua senha permanecerá inalterada.
 
@@ -190,7 +191,7 @@ Equipe Allo Oral Clinic
         </p>
         
         <div class="warning">
-            <strong>⚠️ Atenção:</strong> Este link expira em <strong>${expirationHours} hora(s)</strong>.
+            <strong>⚠️ Atenção:</strong> Este link expira em <strong>${expirationMinutes} minuto(s)</strong>.
         </div>
         
         <p>Se você não solicitou esta redefinição de senha, ignore este email. Sua senha permanecerá inalterada e sua conta continuará segura.</p>

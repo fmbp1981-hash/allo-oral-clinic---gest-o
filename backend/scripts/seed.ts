@@ -20,7 +20,12 @@ async function seed() {
     console.log('🌱 Starting seeding...');
 
     // 1. Create Admin User
-    const adminEmail = 'admin@allooralclinic.com';
+    const adminEmail = (process.env.ADMIN_EMAIL || '').trim();
+    const adminPassword = (process.env.ADMIN_PASSWORD || '').trim();
+
+    if (!adminEmail || !adminPassword) {
+        console.log('ℹ️ Skipping admin creation (set ADMIN_EMAIL and ADMIN_PASSWORD to enable)');
+    } else {
     const { data: existingAdmin } = await supabase
         .from('users')
         .select('id')
@@ -28,7 +33,7 @@ async function seed() {
         .single();
 
     if (!existingAdmin) {
-        const hashedPassword = await bcrypt.hash('admin123', 10);
+        const hashedPassword = await bcrypt.hash(adminPassword, 10);
         const { error } = await supabase.from('users').insert({
             name: 'Administrador',
             email: adminEmail,
@@ -44,6 +49,7 @@ async function seed() {
         }
     } else {
         console.log('ℹ️ Admin user already exists');
+    }
     }
 
     // 2. Create Sample Patients

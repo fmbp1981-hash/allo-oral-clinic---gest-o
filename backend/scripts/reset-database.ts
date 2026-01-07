@@ -9,6 +9,7 @@ import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
 import path from 'path';
+import crypto from 'crypto';
 
 // Load environment variables
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
@@ -25,26 +26,33 @@ if (!SUPABASE_URL || !SUPABASE_KEY) {
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// Configuração do admin padrão
-const DEFAULT_ADMIN = {
-    name: 'Administrador',
-    email: 'fmbp1981@gmail.com',
-    password: 'Admin@123', // Senha padrão - ALTERAR após primeiro login
-    clinic_name: 'Allo Oral Clinic',
-    role: 'admin'
-};
+const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || 'fmbp1981@gmail.com').trim();
+const ADMIN_NAME = (process.env.ADMIN_NAME || 'Administrador').trim();
+const ADMIN_CLINIC_NAME = (process.env.ADMIN_CLINIC_NAME || 'Allo Oral Clinic').trim();
+
+const generateTempPassword = () => crypto.randomBytes(24).toString('base64url');
 
 async function resetDatabase() {
     console.log('🗑️  RESET DO BANCO DE DADOS');
     console.log('=' .repeat(50));
     console.log('⚠️  ATENÇÃO: Isso irá APAGAR TODOS os dados!\n');
 
+    if (!SUPABASE_SERVICE_ROLE_KEY) {
+        console.error('❌ Para resetar o banco com segurança, defina SUPABASE_SERVICE_ROLE_KEY no backend/.env');
+        console.error('   (Usar SUPABASE_ANON_KEY pode falhar por RLS e não apagar tudo)');
+        process.exit(1);
+    }
+
     // 1. Limpar tabelas na ordem correta (respeitando foreign keys)
+    // Ordem: tabelas dependentes primeiro.
     const tablesToClear = [
         'notifications',
-        'sending_logs', 
+        'sending_logs',
+        'clinical_records',
+        'opportunities',
         'patients',
-        'users'
+        'app_settings',
+        'users',
     ];
 
     for (const table of tablesToClear) {
@@ -66,17 +74,20 @@ async function resetDatabase() {
 
     // 2. Criar usuário admin
     console.log('\n📝 Criando usuário administrador...');
-    
-    const hashedPassword = await bcrypt.hash(DEFAULT_ADMIN.password, 10);
+
+    // Create admin with a strong temporary password that is not printed.
+    // The admin should use "Esqueceu?" to set their own password via email.
+    const tempPassword = generateTempPassword();
+    const hashedPassword = await bcrypt.hash(tempPassword, 10);
     
     const { data: newAdmin, error: insertError } = await supabase
         .from('users')
         .insert({
-            name: DEFAULT_ADMIN.name,
-            email: DEFAULT_ADMIN.email,
+            name: ADMIN_NAME,
+            email: ADMIN_EMAIL,
             password: hashedPassword,
-            clinic_name: DEFAULT_ADMIN.clinic_name,
-            role: DEFAULT_ADMIN.role
+            clinic_name: ADMIN_CLINIC_NAME,
+            role: 'admin'
         })
         .select()
         .single();
@@ -88,7 +99,7 @@ async function resetDatabase() {
         const { data: existing } = await supabase
             .from('users')
             .select('id, email')
-            .eq('email', DEFAULT_ADMIN.email)
+            .eq('email', ADMIN_EMAIL)
             .single();
             
         if (existing) {
@@ -113,10 +124,10 @@ async function resetDatabase() {
     // 3. Resumo final
     console.log('\n' + '=' .repeat(50));
     console.log('✅ RESET CONCLUÍDO!\n');
-    console.log('📧 Credenciais do Administrador:');
-    console.log(`   Email: ${DEFAULT_ADMIN.email}`);
-    console.log(`   Senha: ${DEFAULT_ADMIN.password}`);
-    console.log('\n⚠️  IMPORTANTE: Altere a senha após o primeiro login!');
+    console.log('📧 Admin reinicializado:');
+    console.log(`   Email: ${ADMIN_EMAIL}`);
+    console.log('🔐 Senha: gerada automaticamente (não exibida)');
+    console.log('➡️  Próximo passo: na tela de login, clique em "Esqueceu?" e redefina a senha via e-mail.');
     console.log('=' .repeat(50));
 }
 

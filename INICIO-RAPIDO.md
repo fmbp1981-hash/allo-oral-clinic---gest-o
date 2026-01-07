@@ -88,9 +88,9 @@ npm run dev
 ## 🎯 Acessar o Sistema
 
 1. Abra o navegador: **http://localhost:5173**
-2. Faça login com:
-   - Email: `admin@allooral.com`
-   - Senha: `admin123`
+2. Se for a primeira vez ou após reset do banco:
+  - Clique em **"Esqueceu?"** e faça a redefinição de senha via e-mail.
+  - O usuário admin é criado/recriado pelo script de reset do banco no backend.
 
 ---
 
@@ -211,10 +211,10 @@ Resposta esperada:
 
 ## 🔐 Usuários de Teste
 
-| Email | Senha | Perfil |
-|-------|-------|--------|
-| admin@allooral.com | admin123 | Administrador |
-| dentista@allooral.com | dentista123 | Dentista |
+Por segurança, este projeto não publica usuários/senhas padrão na documentação.
+
+- Para iniciar do zero, rode o script de reset do banco no backend.
+- Depois, use **"Esqueceu?"** na tela de login para definir a senha via e-mail.
 
 ---
 

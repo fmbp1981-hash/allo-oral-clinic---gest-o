@@ -285,7 +285,7 @@ npm run dev
 **Checklist de Verificação:**
 
 - [ ] **Abrir**: http://localhost:5173
-- [ ] **Login** com: admin@allooral.com / admin123
+- [ ] **Login**: use o usuário admin criado pelo reset do banco e, se necessário, redefina a senha em **"Esqueceu?"**
 - [ ] **Verificar Console (F12)**: Deve mostrar "✅ Socket.io conectado"
 - [ ] **Criar Notificação de Teste**:
   ```bash
