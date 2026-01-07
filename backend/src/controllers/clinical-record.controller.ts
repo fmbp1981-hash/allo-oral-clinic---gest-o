@@ -6,25 +6,21 @@ import { AuthRequest } from '../middlewares/auth.middleware';
 export const getClinicalRecords = async (req: AuthRequest, res: Response) => {
     try {
         const userId = req.user?.userId;
-        if (!userId) {
-            const userId = req.user?.userId;
-            const tenantId = req.user?.tenantId;
-            if (!userId || !tenantId) {
-                return res.status(401).json({ error: 'Unauthorized' });
-            }
+        const tenantId = req.user?.tenantId;
+        if (!userId || !tenantId) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
 
-            const { patientId } = req.query;
+        const { patientId } = req.query;
 
-            let query = supabase
-                .from('clinical_records')
-                .select(`
+        let query = supabase
+            .from('clinical_records')
+            .select(`
                 *,
                 patient:patients(*),
                 opportunity:opportunities(*)
             `)
-            opportunity: opportunities(*)
-                `)
-            .eq('tenant_id', tenantId) // Scope by tenant
+            .eq('tenant_id', tenantId)
             .order('date', { ascending: false });
 
         if (patientId) {
@@ -48,8 +44,6 @@ export const getClinicalRecords = async (req: AuthRequest, res: Response) => {
 export const createClinicalRecord = async (req: AuthRequest, res: Response) => {
     try {
         const userId = req.user?.userId;
-        if (!userId) {
-        const userId = req.user?.userId;
         const tenantId = req.user?.tenantId;
         if (!userId || !tenantId) {
             return res.status(401).json({ error: 'Unauthorized' });
@@ -64,7 +58,6 @@ export const createClinicalRecord = async (req: AuthRequest, res: Response) => {
                 description,
                 type,
                 patient_id: patientId,
-                opportunity_id: opportunityId,
                 opportunity_id: opportunityId,
                 user_id: userId,
                 tenant_id: tenantId,
@@ -88,8 +81,6 @@ export const createClinicalRecord = async (req: AuthRequest, res: Response) => {
 export const updateClinicalRecord = async (req: AuthRequest, res: Response) => {
     try {
         const userId = req.user?.userId;
-        if (!userId) {
-        const userId = req.user?.userId;
         const tenantId = req.user?.tenantId;
         if (!userId || !tenantId) {
             return res.status(401).json({ error: 'Unauthorized' });
@@ -105,8 +96,6 @@ export const updateClinicalRecord = async (req: AuthRequest, res: Response) => {
 
         const { data: record, error } = await supabase
             .from('clinical_records')
-            .update(updateData)
-            .eq('id', id)
             .update(updateData)
             .eq('id', id)
             .eq('tenant_id', tenantId)
@@ -129,8 +118,6 @@ export const updateClinicalRecord = async (req: AuthRequest, res: Response) => {
 export const deleteClinicalRecord = async (req: AuthRequest, res: Response) => {
     try {
         const userId = req.user?.userId;
-        if (!userId) {
-        const userId = req.user?.userId;
         const tenantId = req.user?.tenantId;
         if (!userId || !tenantId) {
             return res.status(401).json({ error: 'Unauthorized' });
@@ -140,7 +127,6 @@ export const deleteClinicalRecord = async (req: AuthRequest, res: Response) => {
 
         const { error } = await supabase
             .from('clinical_records')
-            .delete()
             .delete()
             .eq('id', id)
             .eq('tenant_id', tenantId);

@@ -12,19 +12,16 @@ export interface Notification {
     type: NotificationType;
     read: boolean;
     created_at: string;
-    created_at: string;
     user_id?: string;
-    tenant_id: string; // Add tenant_id
+    tenant_id: string;
 }
-
 
 export interface CreateNotificationData {
     title: string;
     message: string;
     type: NotificationType;
-    type: NotificationType;
     userId?: string;
-    tenantId: string; // Add tenantId
+    tenantId: string;
 }
 
 class NotificationService {
@@ -50,7 +47,7 @@ class NotificationService {
             // Autenticar usuário via token
             socket.on('authenticate', (data: { userId: string; tenantId: string }) => {
                 const { userId, tenantId } = data;
-                this.connectedUsers.set(userId, socket); // TODO: Maybe map by userId+tenantId? For now userId is unique enough.
+                this.connectedUsers.set(userId, socket);
                 logger.info(`Usuário ${userId} (Tenant: ${tenantId}) autenticado no socket ${socket.id}`);
 
                 // Enviar notificações não lidas ao conectar
@@ -95,9 +92,8 @@ class NotificationService {
                     message: data.message,
                     type: data.type,
                     read: false,
-                    read: false,
                     user_id: data.userId || null,
-                    tenant_id: data.tenantId, // Insert tenant_id
+                    tenant_id: data.tenantId,
                 })
                 .select()
                 .single();
@@ -128,35 +124,34 @@ class NotificationService {
      */
     public async getUserNotifications(userId?: string, tenantId?: string, limit: number = 50): Promise<Notification[]> {
         try {
-            if (!tenantId) return []; // TenantId is required usually, unless superadmin?
+            if (!tenantId) return [];
 
-            try {
-                let query = supabase
-                    .from('notifications')
-                    .select('*')
-                    .order('created_at', { ascending: false })
-                    .limit(limit);
+            let query = supabase
+                .from('notifications')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .limit(limit);
 
-                // Se userId for fornecido, filtra por usuário ou notificações globais DO MESMO TENANT
-                if (userId) {
-                    query = query.or(`user_id.eq.${userId},user_id.is.null`).eq('tenant_id', tenantId);
-                } else {
-                    query = query.is('user_id', null).eq('tenant_id', tenantId);
-                }
+            // Se userId for fornecido, filtra por usuário ou notificações globais DO MESMO TENANT
+            if (userId) {
+                query = query.or(`user_id.eq.${userId},user_id.is.null`).eq('tenant_id', tenantId);
+            } else {
+                query = query.is('user_id', null).eq('tenant_id', tenantId);
+            }
 
-                const { data, error } = await query;
+            const { data, error } = await query;
 
-                if (error) {
-                    logger.error('Erro ao buscar notificações:', error);
-                    return [];
-                }
-
-                return (data as Notification[]) || [];
-            } catch (error) {
-                logger.error('Exceção ao buscar notificações:', error);
+            if (error) {
+                logger.error('Erro ao buscar notificações:', error);
                 return [];
             }
+
+            return (data as Notification[]) || [];
+        } catch (error) {
+            logger.error('Exceção ao buscar notificações:', error);
+            return [];
         }
+    }
 
     /**
      * Busca notificações não lidas
