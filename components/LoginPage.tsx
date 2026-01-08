@@ -24,6 +24,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   // Estados de UI
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [infoMsg, setInfoMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [successTitle, setSuccessTitle] = useState('');
 
@@ -52,6 +53,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setInfoMsg('');
     setSuccessMsg('');
     setLoading(true);
 
@@ -64,27 +66,26 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
         onLogin(user);
       } else if (mode === 'forgot') {
         await requestPasswordReset(email);
-        setSuccessTitle('E-mail enviado!');
-        setSuccessMsg('Se este e-mail existir no sistema, enviaremos um link para redefinir sua senha. Verifique sua caixa de entrada e spam.');
-        setLoading(false);
+        setInfoMsg('Se este e-mail existir no sistema, enviaremos um link para redefinir sua senha. Verifique sua caixa de entrada e spam.');
+        setMode('reset');
         return;
       } else if (mode === 'reset') {
         await resetPassword(email, resetToken, newPassword);
         setSuccessTitle('Senha redefinida!');
         setSuccessMsg('Senha redefinida com sucesso! Você já pode fazer login com sua nova senha.');
-        setLoading(false);
         return;
       }
     } catch (err: any) {
       setError(err.message || 'Ocorreu um erro. Tente novamente.');
     } finally {
-      if (mode !== 'forgot' && mode !== 'reset') setLoading(false);
+      setLoading(false);
     }
   };
 
   const switchMode = (newMode: AuthMode) => {
     setMode(newMode);
     setError('');
+    setInfoMsg('');
     setSuccessMsg('');
     setSuccessTitle('');
   };
@@ -106,15 +107,15 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
         <p className="mt-2 text-center text-sm text-gray-600">
           {mode === 'login' && 'Gestão inteligente de pacientes e busca ativa'}
           {mode === 'register' && 'Comece a gerenciar seus pacientes hoje mesmo'}
-          {mode === 'forgot' && 'Informe seu e-mail para receber o código'}
-          {mode === 'reset' && 'Digite o código recebido e sua nova senha'}
+          {mode === 'forgot' && 'Informe seu e-mail para receber o link'}
+          {mode === 'reset' && 'Cole o token e defina sua nova senha'}
         </p>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-4 shadow-xl sm:rounded-xl sm:px-10 border border-gray-100">
           
-          {successMsg ? (
+          {successMsg && mode === 'reset' ? (
             <div className="text-center py-6">
               <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
                 <CheckCircle className="h-6 w-6 text-green-600" />
@@ -132,6 +133,16 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
             </div>
           ) : (
             <form className="space-y-6" onSubmit={handleSubmit}>
+
+              {infoMsg && (
+                <div className="rounded-md bg-green-50 p-4">
+                  <div className="flex">
+                    <div className="ml-3">
+                      <h3 className="text-sm font-medium text-green-800">{infoMsg}</h3>
+                    </div>
+                  </div>
+                </div>
+              )}
               
               {/* Campos exclusivos de Cadastro */}
               {mode === 'register' && (
@@ -310,7 +321,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                         </>
                       )}
                       {mode === 'register' && 'Criar Conta'}
-                      {mode === 'forgot' && 'Enviar Código de Recuperação'}
+                      {mode === 'forgot' && 'Enviar Link de Recuperação'}
                       {mode === 'reset' && 'Redefinir Senha'}
                     </>
                   )}

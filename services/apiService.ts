@@ -145,6 +145,10 @@ export const requestPasswordReset = async (email: string): Promise<string> => {
     return data.message;
   } catch (error) {
     console.error('Request password reset error:', error);
+    const message = (error as any)?.message || '';
+    if (message.includes('Failed to fetch') || message.includes('NetworkError')) {
+      throw new Error('Não foi possível conectar ao servidor. Verifique se o backend está rodando.');
+    }
     throw error;
   }
 };
@@ -170,6 +174,10 @@ export const resetPassword = async (
     return data.message;
   } catch (error) {
     console.error('Reset password error:', error);
+    const message = (error as any)?.message || '';
+    if (message.includes('Failed to fetch') || message.includes('NetworkError')) {
+      throw new Error('Não foi possível conectar ao servidor. Verifique se o backend está rodando.');
+    }
     throw error;
   }
 };
