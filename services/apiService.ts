@@ -3,7 +3,7 @@ import { Opportunity, OpportunityStatus, Patient, User, Notification, AppSetting
 const normalizeApiBase = (raw?: string): string => {
   const value = (raw ?? '').trim();
 
-  // Default to same-origin; dev is proxied by Vite, prod is proxied by Nginx.
+  // Default to same-origin API routes
   if (!value) return '/api';
 
   // Relative paths are allowed (recommended: /api)
@@ -24,7 +24,15 @@ const normalizeApiBase = (raw?: string): string => {
   return value.replace(/\/+$/, '');
 };
 
-const API_URL = normalizeApiBase(process.env.NEXT_PUBLIC_API_URL);
+// Safe access to environment variables (works in both Vite and Next.js)
+const getEnvVar = (key: string): string | undefined => {
+  if (typeof process !== 'undefined' && process.env) {
+    return process.env[key];
+  }
+  return undefined;
+};
+
+const API_URL = normalizeApiBase(getEnvVar('NEXT_PUBLIC_API_URL'));
 
 // Helper function to get auth token
 const getAuthToken = (): string | null => {
