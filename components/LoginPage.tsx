@@ -1,6 +1,6 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { Activity, Lock, Mail, Loader2, ArrowRight, User, Building2, ChevronLeft, CheckCircle, Key } from 'lucide-react';
+import { Activity, Lock, Mail, Loader2, ArrowRight, User, Building2, ChevronLeft, CheckCircle, Key, Eye, EyeOff } from 'lucide-react';
 import { loginUser, registerUser, requestPasswordReset, resetPassword } from '../services/apiService';
 import { User as UserType } from '../types';
 
@@ -20,6 +20,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   const [clinicName, setClinicName] = useState('');
   const [resetToken, setResetToken] = useState('');
   const [newPassword, setNewPassword] = useState('');
+
+  // Visibilidade das senhas
+  const [showPassword, setShowPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
 
   // Estados de UI
   const [loading, setLoading] = useState(false);
@@ -243,15 +247,23 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                       </div>
                       <input
                         id="newPassword"
-                        type="password"
+                        type={showNewPassword ? 'text' : 'password'}
                         autoComplete="new-password"
                         required={mode === 'reset'}
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
-                        className="bg-white text-gray-900 placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-lg py-3"
+                        className="bg-white text-gray-900 placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 pr-10 sm:text-sm border-gray-300 rounded-lg py-3"
                         placeholder="••••••••"
                         minLength={6}
                       />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                        tabIndex={-1}
+                      >
+                        {showNewPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                      </button>
                     </div>
                   </div>
                 </>
@@ -281,15 +293,23 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                     <input
                       id="password"
                       name="password"
-                      type="password"
+                      type={showPassword ? 'text' : 'password'}
                       autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="bg-white text-gray-900 placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-lg py-3"
+                      className="bg-white text-gray-900 placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 pr-10 sm:text-sm border-gray-300 rounded-lg py-3"
                       placeholder="••••••••"
                       minLength={6}
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                      tabIndex={-1}
+                    >
+                      {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    </button>
                   </div>
                 </div>
               )}

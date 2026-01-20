@@ -74,7 +74,13 @@ export const loginUser = async (email: string, password: string): Promise<User> 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       if (response.status === 401) {
-        throw new Error('Email ou senha incorretos');
+        throw new Error('Email ou senha incorretos. Verifique suas credenciais e tente novamente.');
+      }
+      if (response.status === 404) {
+        throw new Error('Usuário não encontrado. Verifique o email digitado.');
+      }
+      if (response.status === 500) {
+        throw new Error('Erro no servidor. Tente novamente em alguns instantes.');
       }
       throw new Error(errorData.error || 'Erro ao fazer login. Tente novamente.');
     }
@@ -86,8 +92,11 @@ export const loginUser = async (email: string, password: string): Promise<User> 
     localStorage.setItem('clinicaflow_user', JSON.stringify(data.user));
 
     return data.user;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Login error:', error);
+    if (error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {
+      throw new Error('Não foi possível conectar ao servidor. Verifique sua conexão ou se o servidor está disponível.');
+    }
     throw error;
   }
 };
