@@ -10,17 +10,24 @@ interface DarkModeContextType {
 const DarkModeContext = createContext<DarkModeContextType | undefined>(undefined);
 
 export const DarkModeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [isDark, setIsDark] = useState(() => {
+  const [isDark, setIsDark] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
     // Check localStorage first
     const saved = localStorage.getItem('darkMode');
     if (saved !== null) {
-      return saved === 'true';
+      setIsDark(saved === 'true');
+    } else {
+      // Otherwise check system preference
+      setIsDark(window.matchMedia('(prefers-color-scheme: dark)').matches);
     }
-    // Otherwise check system preference
-    return window.matchMedia('(prefers-color-scheme: dark)').matches;
-  });
+  }, []);
 
   useEffect(() => {
+    if (!mounted) return;
+    
     // Apply dark mode class to html element
     const root = window.document.documentElement;
     if (isDark) {
@@ -31,7 +38,7 @@ export const DarkModeProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     // Save preference
     localStorage.setItem('darkMode', isDark.toString());
-  }, [isDark]);
+  }, [isDark, mounted]);
 
   const toggle = () => setIsDark(prev => !prev);
   const enable = () => setIsDark(true);
