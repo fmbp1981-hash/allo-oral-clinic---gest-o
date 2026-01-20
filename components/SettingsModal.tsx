@@ -1,7 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { X, MessageCircle, Workflow, FileText, Smartphone } from 'lucide-react';
+import { X, MessageCircle, Workflow, FileText, Smartphone, Trello, Check, AlertCircle, Loader2, ExternalLink } from 'lucide-react';
 import { getSettings, saveSettings } from '../services/apiService';
 import { WhatsAppConfig, WhatsAppProvider, saveWhatsAppConfig } from '../services/whatsappService';
+import { 
+  getTrelloStatus, 
+  testTrelloConnection, 
+  saveTrelloConfig, 
+  getTrelloBoards, 
+  setupTrelloLists,
+  TrelloBoard,
+  TrelloStatus,
+  TrelloListMapping,
+  saveTrelloConfigLocal 
+} from '../services/trelloService';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -21,6 +32,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
   const [zApiUrl, setZApiUrl] = useState('');
   const [zApiInstance, setZApiInstance] = useState('');
   const [zApiToken, setZApiToken] = useState('');
+
+  // Trello State
+  const [trelloApiKey, setTrelloApiKey] = useState('');
+  const [trelloToken, setTrelloToken] = useState('');
+  const [trelloBoards, setTrelloBoards] = useState<TrelloBoard[]>([]);
+  const [selectedBoardId, setSelectedBoardId] = useState('');
+  const [selectedBoardName, setSelectedBoardName] = useState('');
+  const [trelloSyncEnabled, setTrelloSyncEnabled] = useState(false);
+  const [trelloStatus, setTrelloStatus] = useState<TrelloStatus | null>(null);
+  const [trelloTestResult, setTrelloTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [trelloLoading, setTrelloLoading] = useState(false);
+  const [trelloListMapping, setTrelloListMapping] = useState<TrelloListMapping | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -51,8 +74,100 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
           console.warn('Failed to load WhatsApp config');
         }
       }
+
+      // Load Trello status
+      loadTrelloStatus();
+
+      // Load Trello config from localStorage
+      const trelloConfig = localStorage.getItem('trello_config');
+      if (trelloConfig) {
+        try {
+          const config = JSON.parse(trelloConfig);
+          setTrelloApiKey(config.apiKey || '');
+          setTrelloToken(config.token || '');
+          setSelectedBoardId(config.boardId || '');
+          setSelectedBoardName(config.boardName || '');
+          setTrelloSyncEnabled(config.syncEnabled || false);
+          setTrelloListMapping(config.listMapping || null);
+        } catch (e) {
+          console.warn('Failed to load Trello config');
+        }
+      }
     }
   }, [isOpen]);
+
+  // Load Trello status from API
+  const loadTrelloStatus = async () => {
+    try {
+      const status = await getTrelloStatus();
+      setTrelloStatus(status);
+      if (status.savedConfig) {
+        setSelectedBoardId(status.savedConfig.board_id || '');
+        setSelectedBoardName(status.savedConfig.board_name || '');
+        setTrelloSyncEnabled(status.savedConfig.sync_enabled || false);
+        setTrelloListMapping(status.savedConfig.list_mapping || null);
+      }
+    } catch (error) {
+      console.warn('Failed to load Trello status:', error);
+    }
+  };
+
+  // Test Trello connection
+  const handleTestTrelloConnection = async () => {
+    if (!trelloApiKey || !trelloToken) {
+      setTrelloTestResult({ success: false, message: 'API Key e Token são obrigatórios' });
+      return;
+    }
+
+    setTrelloLoading(true);
+    setTrelloTestResult(null);
+
+    try {
+      const result = await testTrelloConnection(trelloApiKey, trelloToken);
+      if (result.success) {
+        setTrelloTestResult({ 
+          success: true, 
+          message: `Conectado como: ${result.user?.fullName} (@${result.user?.username})` 
+        });
+        // Load boards after successful connection
+        await loadTrelloBoards();
+      } else {
+        setTrelloTestResult({ success: false, message: result.error || 'Falha na conexão' });
+      }
+    } catch (error: any) {
+      setTrelloTestResult({ success: false, message: error.message || 'Erro ao testar conexão' });
+    } finally {
+      setTrelloLoading(false);
+    }
+  };
+
+  // Load Trello boards
+  const loadTrelloBoards = async () => {
+    try {
+      const boards = await getTrelloBoards();
+      setTrelloBoards(boards);
+    } catch (error) {
+      console.warn('Failed to load Trello boards:', error);
+    }
+  };
+
+  // Setup default lists on selected board
+  const handleSetupTrelloLists = async () => {
+    if (!selectedBoardId) return;
+
+    setTrelloLoading(true);
+    try {
+      const result = await setupTrelloLists(selectedBoardId);
+      if (result.success) {
+        setTrelloListMapping(result.listMapping);
+        setTrelloTestResult({ success: true, message: 'Listas criadas/mapeadas com sucesso!' });
+      }
+    } catch (error: any) {
+      setTrelloTestResult({ success: false, message: error.message || 'Erro ao configurar listas' });
+    } finally {
+      setTrelloLoading(false);
+    }
+  };
 
   const handleSave = () => {
     saveSettings({
@@ -72,6 +187,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
       zApiToken: zApiToken
     };
     saveWhatsAppConfig(whatsappConfig);
+
+    // Save Trello config if configured
+    if (trelloApiKey && trelloToken) {
+      const trelloConfig = {
+        apiKey: trelloApiKey,
+        token: trelloToken,
+        boardId: selectedBoardId,
+        boardName: selectedBoardName,
+        syncEnabled: trelloSyncEnabled,
+        listMapping: trelloListMapping,
+      };
+      saveTrelloConfigLocal(trelloConfig);
+      
+      // Also save to backend
+      saveTrelloConfig(trelloConfig).catch(err => {
+        console.warn('Failed to save Trello config to backend:', err);
+      });
+    }
 
     onClose();
   };
@@ -276,6 +409,160 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                 Variáveis disponíveis: <span className="font-mono bg-gray-100 dark:bg-gray-700 px-1 rounded">{`{name}`}</span> (Nome do paciente), <span className="font-mono bg-gray-100 dark:bg-gray-700 px-1 rounded">{`{keyword}`}</span> (Termo buscado).
               </p>
             </div>
+          </div>
+
+          {/* Seção Trello */}
+          <div className="space-y-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <div className="flex items-center gap-2 pb-2 border-b border-gray-100 dark:border-gray-700">
+              <Trello size={16} className="text-blue-500" />
+              <h4 className="text-sm font-bold text-gray-800 dark:text-white">3. Integração Trello</h4>
+              {trelloStatus?.configured && (
+                <span className="ml-auto text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
+                  <Check size={12} /> Conectado
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Conecte seu Trello para sincronização bidirecional de oportunidades com cartões do Trello.
+            </p>
+
+            {/* Trello Credentials */}
+            <div className="space-y-3 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                  API Key
+                </label>
+                <input
+                  type="text"
+                  value={trelloApiKey}
+                  onChange={(e) => setTrelloApiKey(e.target.value)}
+                  className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 text-sm"
+                  placeholder="Sua API Key do Trello"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                  Token
+                </label>
+                <input
+                  type="password"
+                  value={trelloToken}
+                  onChange={(e) => setTrelloToken(e.target.value)}
+                  className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 text-sm"
+                  placeholder="Seu Token do Trello"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <a 
+                  href="https://trello.com/power-ups/admin" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                >
+                  <ExternalLink size={12} /> Obter credenciais no Trello
+                </a>
+              </div>
+              <button
+                onClick={handleTestTrelloConnection}
+                disabled={trelloLoading || !trelloApiKey || !trelloToken}
+                className="w-full px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+              >
+                {trelloLoading ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" /> Testando...
+                  </>
+                ) : (
+                  'Testar Conexão'
+                )}
+              </button>
+
+              {/* Test Result */}
+              {trelloTestResult && (
+                <div className={`p-3 rounded-lg text-sm flex items-start gap-2 ${
+                  trelloTestResult.success 
+                    ? 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300' 
+                    : 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300'
+                }`}>
+                  {trelloTestResult.success ? <Check size={16} /> : <AlertCircle size={16} />}
+                  {trelloTestResult.message}
+                </div>
+              )}
+            </div>
+
+            {/* Board Selection */}
+            {trelloBoards.length > 0 && (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                    Selecionar Board
+                  </label>
+                  <select
+                    value={selectedBoardId}
+                    onChange={(e) => {
+                      const board = trelloBoards.find(b => b.id === e.target.value);
+                      setSelectedBoardId(e.target.value);
+                      setSelectedBoardName(board?.name || '');
+                    }}
+                    className="block w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm shadow-sm"
+                  >
+                    <option value="">Selecione um board...</option>
+                    {trelloBoards.map(board => (
+                      <option key={board.id} value={board.id}>{board.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {selectedBoardId && (
+                  <button
+                    onClick={handleSetupTrelloLists}
+                    disabled={trelloLoading}
+                    className="w-full px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                  >
+                    {trelloLoading ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin" /> Configurando...
+                      </>
+                    ) : (
+                      'Configurar Listas Automáticas'
+                    )}
+                  </button>
+                )}
+
+                {/* List Mapping Status */}
+                {trelloListMapping && (
+                  <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Mapeamento de Listas:</p>
+                    <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-400">
+                      <span>📥 Novos → {trelloListMapping.NEW ? '✅' : '❌'}</span>
+                      <span>📤 Enviados → {trelloListMapping.SENT ? '✅' : '❌'}</span>
+                      <span>💬 Respondeu → {trelloListMapping.RESPONDED ? '✅' : '❌'}</span>
+                      <span>📅 Agendado → {trelloListMapping.SCHEDULED ? '✅' : '❌'}</span>
+                      <span>✅ Arquivado → {trelloListMapping.ARCHIVED ? '✅' : '❌'}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Sync Toggle */}
+                <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                  <div>
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Sincronização Automática</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Sincronizar oportunidades com cartões do Trello</p>
+                  </div>
+                  <button
+                    onClick={() => setTrelloSyncEnabled(!trelloSyncEnabled)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                      trelloSyncEnabled ? 'bg-indigo-600' : 'bg-gray-300 dark:bg-gray-600'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        trelloSyncEnabled ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
         </div>

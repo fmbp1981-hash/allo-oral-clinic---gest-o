@@ -40,15 +40,26 @@ async function seed() {
             password: hashedPassword,
             clinic_name: 'Allo Oral Clinic',
             avatar_url: 'https://ui-avatars.com/api/?name=Admin&background=0D8ABC&color=fff',
+            role: 'admin',
         });
 
         if (error) {
             console.error('❌ Error creating admin:', error);
         } else {
-            console.log('✅ Admin user created');
+            console.log('✅ Admin user created with role: admin');
         }
     } else {
-        console.log('ℹ️ Admin user already exists');
+        // Update existing admin to ensure role is set
+        const { error } = await supabase
+            .from('users')
+            .update({ role: 'admin' })
+            .eq('id', existingAdmin.id);
+        
+        if (error) {
+            console.error('❌ Error updating admin role:', error);
+        } else {
+            console.log('✅ Admin user already exists - role updated to admin');
+        }
     }
     }
 

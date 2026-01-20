@@ -11,7 +11,9 @@
         "test:watch": "jest --watch",
         "test:coverage": "jest --coverage",
         "lint": "echo \"Linting...\" && exit 0",
-        "seed": "ts-node scripts/seed.ts"
+        "seed": "ts-node scripts/seed.ts",
+        "reset-admin": "ts-node scripts/reset-and-setup-admin.ts",
+        "cleanup-users": "ts-node scripts/cleanup-users.ts"
     },
     "dependencies": {
         "@sentry/node": "^8.0.0",
