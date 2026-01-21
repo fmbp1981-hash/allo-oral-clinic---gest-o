@@ -873,10 +873,10 @@ const AppContent = ({ user, setUser }: { user: User | null; setUser: (user: User
                     {/* Rodapé IntelliX.AI */}
           <div className="mt-6 pb-2">
             <div className="flex flex-col items-center justify-center pt-4 border-t border-gray-100 dark:border-gray-700 opacity-90 hover:opacity-100 transition-opacity cursor-default">
-              <img 
+                            <img 
                 src="/intellix-logo.png" 
                 alt="IntelliX.AI" 
-                className="h-12 w-auto"
+                className="h-20 w-auto"
               />
             </div>
           </div>
