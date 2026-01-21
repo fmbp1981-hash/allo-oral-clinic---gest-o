@@ -36,7 +36,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     // Log error to console in development
-    if (process.env.NODE_ENV === 'development') {
+    if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'development') {
       console.error('Error Boundary caught an error:', error, errorInfo);
     }
 
@@ -61,7 +61,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     // Sentry.captureException(error, { contexts: { react: { componentStack: errorInfo.componentStack } } });
 
     // For now, just log to console in production
-    if (process.env.NODE_ENV === 'production') {
+    if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'production') {
       console.error('Production Error:', {
         message: error.message,
         stack: error.stack,
@@ -132,7 +132,7 @@ export const ErrorFallback: React.FC<ErrorFallbackProps> = ({
   onGoHome,
   showDetails = false,
 }) => {
-  const isDevelopment = process.env.NODE_ENV === 'development';
+  const isDevelopment = typeof process !== 'undefined' && process.env?.NODE_ENV === 'development';
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">

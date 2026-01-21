@@ -17,7 +17,7 @@ const App = dynamic(() => import('../App'), {
 
 export default function HomePage() {
   return (
-    <ErrorBoundary showDetails={process.env.NODE_ENV === 'development'}>
+    <ErrorBoundary showDetails={typeof process !== 'undefined' && process.env?.NODE_ENV === 'development'}>
       <DarkModeProvider>
         <ToastProvider>
           <App />

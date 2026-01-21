@@ -3,7 +3,8 @@
  * Handles all Trello-related API calls
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+// Use relative API path for Next.js compatibility
+const API_BASE_URL = '/api';
 
 // ============================================
 // TYPES
