@@ -870,17 +870,14 @@ const AppContent = ({ user, setUser }: { user: User | null; setUser: (user: User
             Sair da Conta
           </button>
 
-          {/* Rodapé IntelliX.AI */}
+                    {/* Rodapé IntelliX.AI */}
           <div className="mt-6 pb-2">
             <div className="flex flex-col items-center justify-center pt-4 border-t border-gray-100 dark:border-gray-700 opacity-90 hover:opacity-100 transition-opacity cursor-default">
-              <span className="text-[10px] text-gray-400 dark:text-gray-500 mb-1 text-center">Desenvolvido por</span>
-              <div className="flex items-center justify-center gap-1.5">
-                <Brain className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                <div className="text-sm font-bold tracking-tight">
-                  <span className="text-amber-500 dark:text-amber-400">IntelliX</span>
-                  <span className="text-blue-600 dark:text-blue-400">.AI</span>
-                </div>
-              </div>
+              <img 
+                src="/intellix-logo.png" 
+                alt="IntelliX.AI" 
+                className="h-12 w-auto"
+              />
             </div>
           </div>
 
