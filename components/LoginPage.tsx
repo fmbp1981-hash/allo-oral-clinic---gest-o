@@ -383,6 +383,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
           </div>
         </div>
       </div>
+           {/* Footer - Desenvolvido por */}
+        <div className="mt-8 text-center pb-4">
+          <span className="text-sm text-gray-500">Desenvolvido por </span>
+          <span className="text-sm font-bold text-amber-500">IntelliX</span>
+          <span className="text-sm font-bold text-blue-600">.AI</span>
+        </div>
     </div>
   );
 };
