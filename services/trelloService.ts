@@ -3,8 +3,8 @@
  * Handles all Trello-related API calls
  */
 
-// Use relative API path for Next.js compatibility
-const API_BASE_URL = '/api';
+// Use relative API path for Next.js API Routes
+const API_BASE_URL = '';
 
 // ============================================
 // TYPES
