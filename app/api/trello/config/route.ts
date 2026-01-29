@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import { TrelloClient, TrelloListMapping } from '../../lib/trello';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '';
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+import { SupabaseClient } from '@supabase/supabase-js';
+import { validateAuthHeader, isAuthError } from '../../lib/auth';
+import { getSupabaseClient, isNotFoundError, DbTrelloConfig } from '../../lib/supabase';
+import { config as appConfig } from '../../lib/config';
+import { TrelloClient } from '../../lib/trello';
 
 /**
  * GET /api/trello/config
@@ -11,20 +11,13 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PU
  */
 export async function GET(request: NextRequest) {
     try {
-        const authHeader = request.headers.get('Authorization');
-        if (!authHeader?.startsWith('Bearer ')) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        const auth = validateAuthHeader(request);
+        if (isAuthError(auth)) {
+            return NextResponse.json({ error: auth.error }, { status: auth.status });
         }
 
-        const token = authHeader.substring(7);
-        const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
-        const userId = payload.userId;
-
-        if (!userId) {
-            return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
-        }
-
-        const supabase = createClient(supabaseUrl, supabaseKey);
+        const { userId } = auth.data;
+        const supabase = getSupabaseClient();
 
         const { data: config, error } = await supabase
             .from('trello_config')
@@ -32,8 +25,11 @@ export async function GET(request: NextRequest) {
             .eq('user_id', userId)
             .single();
 
-        if (error && error.code !== 'PGRST116') {
-            return NextResponse.json({ error: 'Failed to fetch config' }, { status: 500 });
+        if (error && !isNotFoundError(error)) {
+            return NextResponse.json(
+                { error: 'Erro ao buscar configuração' },
+                { status: 500 }
+            );
         }
 
         if (!config) {
@@ -50,7 +46,10 @@ export async function GET(request: NextRequest) {
         });
     } catch (error) {
         console.error('Error in GET /api/trello/config:', error);
-        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+        return NextResponse.json(
+            { error: 'Erro interno do servidor' },
+            { status: 500 }
+        );
     }
 }
 
@@ -60,18 +59,12 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
     try {
-        const authHeader = request.headers.get('Authorization');
-        if (!authHeader?.startsWith('Bearer ')) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        const auth = validateAuthHeader(request);
+        if (isAuthError(auth)) {
+            return NextResponse.json({ error: auth.error }, { status: auth.status });
         }
 
-        const token = authHeader.substring(7);
-        const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
-        const userId = payload.userId;
-
-        if (!userId) {
-            return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
-        }
+        const { userId } = auth.data;
 
         const body = await request.json();
         const {
@@ -85,7 +78,7 @@ export async function POST(request: NextRequest) {
 
         if (!apiKey || !trelloToken) {
             return NextResponse.json(
-                { error: 'API Key and Token are required' },
+                { error: 'API Key e Token são obrigatórios' },
                 { status: 400 }
             );
         }
@@ -96,12 +89,12 @@ export async function POST(request: NextRequest) {
             await client.testConnection();
         } catch {
             return NextResponse.json(
-                { error: 'Invalid Trello credentials' },
+                { error: 'Credenciais do Trello inválidas' },
                 { status: 400 }
             );
         }
 
-        const supabase = createClient(supabaseUrl, supabaseKey);
+        const supabase = getSupabaseClient();
 
         // Check if config exists
         const { data: existing } = await supabase
@@ -121,7 +114,7 @@ export async function POST(request: NextRequest) {
             updated_at: new Date().toISOString(),
         };
 
-        let result;
+        let result: DbTrelloConfig;
         if (existing) {
             // Update existing config
             const { data, error } = await supabase
@@ -152,7 +145,7 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({
             success: true,
-            message: 'Trello configuration saved successfully',
+            message: 'Configuração do Trello salva com sucesso',
             config: {
                 boardId: result.board_id,
                 boardName: result.board_name,
@@ -162,7 +155,10 @@ export async function POST(request: NextRequest) {
         });
     } catch (error) {
         console.error('Error in POST /api/trello/config:', error);
-        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+        return NextResponse.json(
+            { error: 'Erro interno do servidor' },
+            { status: 500 }
+        );
     }
 }
 
@@ -171,21 +167,18 @@ export async function POST(request: NextRequest) {
  */
 async function setupWebhook(
     client: TrelloClient,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    supabase: any,
+    supabase: SupabaseClient,
     userId: string,
     boardId: string,
     existingWebhookId?: string
 ): Promise<void> {
     try {
-        // Get the base URL for webhooks
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL;
-        if (!baseUrl) {
-            console.warn('No base URL configured for webhooks');
+        const callbackUrl = appConfig.app.webhookUrl;
+
+        if (!callbackUrl || callbackUrl.includes('localhost')) {
+            console.warn('Webhook URL not configured or is localhost - skipping webhook setup');
             return;
         }
-
-        const callbackUrl = `${baseUrl.startsWith('http') ? baseUrl : `https://${baseUrl}`}/api/trello/webhook`;
 
         // Delete existing webhook if any
         if (existingWebhookId) {

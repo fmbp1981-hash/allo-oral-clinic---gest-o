@@ -169,44 +169,57 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     }
   };
 
-  const handleSave = () => {
-    saveSettings({
-      messageTemplate: template
-    });
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-    // Save WhatsApp config
-    const whatsappConfig: WhatsAppConfig = {
-      provider: whatsappProvider,
-      evolutionApiUrl: evolutionUrl,
-      evolutionInstanceName: evolutionInstance,
-      evolutionApiKey: evolutionApiKey,
-      businessCloudPhoneNumberId: businessPhoneId,
-      businessCloudAccessToken: businessToken,
-      zApiUrl: zApiUrl,
-      zApiInstanceId: zApiInstance,
-      zApiToken: zApiToken
-    };
-    saveWhatsAppConfig(whatsappConfig);
+  const handleSave = async () => {
+    setSaving(true);
+    setSaveError(null);
 
-    // Save Trello config if configured
-    if (trelloApiKey && trelloToken) {
-      const trelloConfig = {
-        apiKey: trelloApiKey,
-        token: trelloToken,
-        boardId: selectedBoardId,
-        boardName: selectedBoardName,
-        syncEnabled: trelloSyncEnabled,
-        listMapping: trelloListMapping,
-      };
-      saveTrelloConfigLocal(trelloConfig);
-      
-      // Also save to backend
-      saveTrelloConfig(trelloConfig).catch(err => {
-        console.warn('Failed to save Trello config to backend:', err);
+    try {
+      saveSettings({
+        messageTemplate: template
       });
-    }
 
-    onClose();
+      // Save WhatsApp config
+      const whatsappConfig: WhatsAppConfig = {
+        provider: whatsappProvider,
+        evolutionApiUrl: evolutionUrl,
+        evolutionInstanceName: evolutionInstance,
+        evolutionApiKey: evolutionApiKey,
+        businessCloudPhoneNumberId: businessPhoneId,
+        businessCloudAccessToken: businessToken,
+        zApiUrl: zApiUrl,
+        zApiInstanceId: zApiInstance,
+        zApiToken: zApiToken
+      };
+      saveWhatsAppConfig(whatsappConfig);
+
+      // Save Trello config if configured
+      if (trelloApiKey && trelloToken) {
+        const trelloConfig = {
+          apiKey: trelloApiKey,
+          token: trelloToken,
+          boardId: selectedBoardId,
+          boardName: selectedBoardName,
+          syncEnabled: trelloSyncEnabled,
+          listMapping: trelloListMapping,
+        };
+        saveTrelloConfigLocal(trelloConfig);
+
+        // Also save to backend - await to catch errors
+        await saveTrelloConfig(trelloConfig);
+      }
+
+      // Only close if all saves succeeded
+      onClose();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erro ao salvar configurações';
+      setSaveError(message);
+      console.error('Failed to save settings:', err);
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -567,13 +580,29 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
 
         </div>
 
-        <div className="px-6 py-4 bg-gray-50 dark:bg-gray-900 flex justify-end gap-3 border-t border-gray-100 dark:border-gray-700 shrink-0">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
-            Cancelar
-          </button>
-          <button onClick={handleSave} className="px-4 py-2 bg-indigo-600 dark:bg-indigo-500 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-colors">
-            Salvar Configuração
-          </button>
+        <div className="px-6 py-4 bg-gray-50 dark:bg-gray-900 border-t border-gray-100 dark:border-gray-700 shrink-0">
+          {saveError && (
+            <div className="mb-3 p-3 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded-lg text-red-700 dark:text-red-300 text-sm flex justify-between items-center">
+              <span>{saveError}</span>
+              <button onClick={() => setSaveError(null)} className="ml-2 text-red-500 hover:text-red-700 font-bold">×</button>
+            </div>
+          )}
+          <div className="flex justify-end gap-3">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors disabled:opacity-50"
+              disabled={saving}
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleSave}
+              className="px-4 py-2 bg-indigo-600 dark:bg-indigo-500 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={saving}
+            >
+              {saving ? 'Salvando...' : 'Salvar Configuração'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

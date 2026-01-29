@@ -16,6 +16,12 @@ const getTransporter = () => {
   });
 };
 
+interface UserRecord {
+  id: string;
+  email: string;
+  name: string;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { email } = await request.json();
@@ -28,11 +34,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Find user
-    const { data: user, error } = await supabase
+    const { data, error } = await supabase
       .from('users')
       .select('id, email, name')
       .eq('email', email.toLowerCase().trim())
       .single();
+
+    const user = data as UserRecord | null;
 
     if (error || !user) {
       // Don't reveal if user exists
@@ -56,8 +64,8 @@ export async function POST(request: NextRequest) {
       .eq('id', user.id);
 
     // Build reset URL
-    const baseUrl = process.env.FRONTEND_URL || process.env.VERCEL_URL 
-      ? `https://${process.env.VERCEL_URL}` 
+    const baseUrl = process.env.FRONTEND_URL || process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
       : 'http://localhost:3000';
     const resetUrl = `${baseUrl}/reset-password?token=${resetToken}&email=${encodeURIComponent(email)}`;
 
@@ -93,7 +101,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       message: 'Se o email existir, você receberá instruções para redefinir sua senha.',
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Password reset request error:', error);
     return NextResponse.json(
       { error: 'Erro ao processar solicitação' },

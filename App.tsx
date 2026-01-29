@@ -1005,7 +1005,6 @@ const AppContent = ({ user, setUser }: { user: User | null; setUser: (user: User
 // Main App Wrapper with NotificationsProvider
 const App = () => {
   const [user, setUser] = useState<User | null>(null);
-  const [page, setPage] = useState<PageType>('dashboard');
 
   useEffect(() => {
     const storedUser = getStoredUser();
@@ -1016,40 +1015,7 @@ const App = () => {
 
   return (
     <NotificationsProvider userId={user?.id} tenantId={user?.tenantId}>
-      <div className="flex h-screen">
-        {/* Sidebar */}
-        <aside className="w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex flex-col">
-          <div className="flex-1">
-            <nav className="mt-8">
-              <ul className="space-y-2">
-                <li>
-                  <button className={`w-full text-left px-4 py-2 rounded transition-colors ${page === 'dashboard' ? 'bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300' : 'hover:bg-gray-100 dark:hover:bg-gray-800'}`} onClick={() => setPage('dashboard')}>Dashboard</button>
-                </li>
-                <li>
-                  <button className={`w-full text-left px-4 py-2 rounded transition-colors ${page === 'search' ? 'bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300' : 'hover:bg-gray-100 dark:hover:bg-gray-800'}`} onClick={() => setPage('search')}>Busca</button>
-                </li>
-                <li>
-                  <button className={`w-full text-left px-4 py-2 rounded transition-colors ${page === 'pipeline' ? 'bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300' : 'hover:bg-gray-100 dark:hover:bg-gray-800'}`} onClick={() => setPage('pipeline')}>Pipeline</button>
-                </li>
-                <li>
-                  <button className={`w-full text-left px-4 py-2 rounded transition-colors ${page === 'database' ? 'bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300' : 'hover:bg-gray-100 dark:hover:bg-gray-800'}`} onClick={() => setPage('database')}>Base de Pacientes</button>
-                </li>
-                <li>
-                  <button className={`w-full text-left px-4 py-2 rounded transition-colors ${page === 'trello' ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300' : 'hover:bg-gray-100 dark:hover:bg-gray-800'}`} onClick={() => setPage('trello')}>Integração Trello</button>
-                </li>
-              </ul>
-            </nav>
-          </div>
-        </aside>
-        {/* Main Content */}
-        <main className="flex-1 overflow-y-auto">
-          {page === 'dashboard' && <DashboardPage opportunities={[]} user={user as User} totalDatabaseCount={0} loading={false} />}
-          {page === 'search' && <SearchPage opportunities={[]} setOpportunities={() => {}} onUpdateStatus={() => {}} onViewDetails={() => {}} onClearAll={() => {}} toast={{}} />}
-          {page === 'pipeline' && <PipelinePage opportunities={[]} onUpdateStatus={() => {}} onViewDetails={() => {}} onClearAll={() => {}} />}
-          {page === 'database' && <DatabasePage patients={[]} loading={false} opportunities={[]} onAddToPipeline={() => {}} onRefresh={() => {}} />}
-          {page === 'trello' && <TrelloDashboard />}
-        </main>
-      </div>
+      <AppContent user={user} setUser={setUser} />
     </NotificationsProvider>
   );
 };

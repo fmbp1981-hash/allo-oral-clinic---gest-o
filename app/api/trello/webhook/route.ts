@@ -1,18 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { SupabaseClient } from '@supabase/supabase-js';
+import { createSupabaseClient } from '../../lib/supabase';
 import {
     TrelloClient,
     TrelloListMapping,
+    TrelloCardMapping,
     parseCardDescription,
     getStatusFromListId,
 } from '../../lib/trello';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '';
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-
-// Use any type for Supabase client to avoid complex type issues
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type SupabaseClient = any;
 
 interface TrelloWebhookConfig {
     id: string;
@@ -21,12 +16,6 @@ interface TrelloWebhookConfig {
     token: string;
     board_id: string;
     list_mapping: TrelloListMapping;
-}
-
-interface TrelloCardMapping {
-    id: string;
-    opportunity_id: string;
-    trello_card_id: string;
 }
 
 /**
@@ -52,7 +41,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        
+
         // Trello webhook payload structure
         const { action, model } = body;
 
@@ -61,13 +50,13 @@ export async function POST(request: NextRequest) {
             return new NextResponse('OK', { status: 200 });
         }
 
-        const supabase = createClient(supabaseUrl, supabaseKey);
+        // Webhook requests come from Trello, so we create a fresh client
+        const supabase = createSupabaseClient();
 
         // Get the board ID from the webhook
         const boardId = model.id || action.data?.board?.id;
 
         if (!boardId) {
-            console.log('Webhook received but no board ID found');
             return new NextResponse('OK', { status: 200 });
         }
 
@@ -79,7 +68,6 @@ export async function POST(request: NextRequest) {
             .eq('sync_enabled', true);
 
         if (configError || !configs || configs.length === 0) {
-            console.log('No active sync config found for board:', boardId);
             return new NextResponse('OK', { status: 200 });
         }
 
@@ -213,7 +201,7 @@ async function handleCardCreated(
         patient_phone: parsedData.patientPhone || '',
         keyword: parsedData.keyword || 'Trello',
         status: status,
-        notes: parsedData.notes || `Imported from Trello: ${fullCard.name}`,
+        notes: parsedData.notes || `Importado do Trello: ${fullCard.name}`,
         scheduled_date: fullCard.due ? new Date(fullCard.due) : null,
         created_from: 'trello',
     };
@@ -249,8 +237,6 @@ async function handleCardCreated(
         details: { cardName: fullCard.name, status },
         status: 'success',
     });
-
-    console.log(`Created opportunity ${newOpportunity.id} from Trello card ${cardData.id}`);
 }
 
 /**
@@ -279,7 +265,6 @@ async function handleCardMoved(
     // Get new status from list
     const newStatus = getStatusFromListId(newListId, config.list_mapping);
     if (!newStatus) {
-        console.log(`List ${newListId} not mapped to any status`);
         return;
     }
 
@@ -316,8 +301,6 @@ async function handleCardMoved(
         details: { newStatus, newListId },
         status: 'success',
     });
-
-    console.log(`Updated opportunity ${typedMapping.opportunity_id} status to ${newStatus}`);
 }
 
 /**
@@ -400,8 +383,6 @@ async function handleCardUpdated(
         details: { updates },
         status: 'success',
     });
-
-    console.log(`Updated opportunity ${typedMapping.opportunity_id} from Trello`);
 }
 
 /**
@@ -425,7 +406,7 @@ async function handleCardDeleted(
 
     const typedMapping = mapping as TrelloCardMapping;
 
-    // Option 1: Archive the opportunity (safer)
+    // Archive the opportunity (safer than deleting)
     await supabase
         .from('opportunities')
         .update({
@@ -447,9 +428,7 @@ async function handleCardDeleted(
         direction: 'from_trello',
         opportunity_id: typedMapping.opportunity_id,
         trello_card_id: cardId,
-        details: { reason: 'Card deleted from Trello' },
+        details: { reason: 'Card excluído do Trello' },
         status: 'success',
     });
-
-    console.log(`Archived opportunity ${typedMapping.opportunity_id} (Trello card deleted)`);
 }

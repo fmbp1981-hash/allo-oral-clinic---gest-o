@@ -1,28 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { validateAuthHeader, isAuthError } from '../../../../lib/auth';
+import { getSupabaseClient, isNotFoundError } from '../../../../lib/supabase';
 import { TrelloClient } from '../../../../lib/trello';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '';
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
 /**
  * Helper to get user ID and Trello client from request
  */
 async function getAuthAndClient(request: NextRequest) {
-    const authHeader = request.headers.get('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-        return { error: 'Unauthorized', status: 401 };
+    const auth = validateAuthHeader(request);
+    if (isAuthError(auth)) {
+        return { error: auth.error, status: auth.status };
     }
 
-    const token = authHeader.substring(7);
-    const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
-    const userId = payload.userId;
-
-    if (!userId) {
-        return { error: 'Invalid token', status: 401 };
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const { userId } = auth.data;
+    const supabase = getSupabaseClient();
 
     const { data: config, error } = await supabase
         .from('trello_config')
@@ -30,8 +21,13 @@ async function getAuthAndClient(request: NextRequest) {
         .eq('user_id', userId)
         .single();
 
-    if (error || !config?.api_key || !config?.token) {
-        return { error: 'Trello not configured', status: 400 };
+    if (error && !isNotFoundError(error)) {
+        console.error('Error fetching Trello config:', error);
+        return { error: 'Erro ao buscar configuração do Trello', status: 500 };
+    }
+
+    if (!config?.api_key || !config?.token) {
+        return { error: 'Trello não configurado', status: 400 };
     }
 
     const client = new TrelloClient(config.api_key, config.token);
@@ -60,7 +56,7 @@ export async function POST(
 
         if (!listId) {
             return NextResponse.json(
-                { error: 'listId is required' },
+                { error: 'listId é obrigatório' },
                 { status: 400 }
             );
         }
@@ -79,6 +75,9 @@ export async function POST(
         return NextResponse.json(card);
     } catch (error) {
         console.error('Error in POST /api/trello/cards/[cardId]/move:', error);
-        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+        return NextResponse.json(
+            { error: 'Erro ao mover card' },
+            { status: 500 }
+        );
     }
 }

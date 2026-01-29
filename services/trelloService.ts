@@ -82,6 +82,33 @@ export interface TrelloStatus {
 }
 
 // ============================================
+// CUSTOM ERROR CLASS
+// ============================================
+
+export class ApiError extends Error {
+    constructor(
+        message: string,
+        public status: number,
+        public code?: string
+    ) {
+        super(message);
+        this.name = 'ApiError';
+    }
+
+    get isAuthError(): boolean {
+        return this.status === 401;
+    }
+
+    get isNotFound(): boolean {
+        return this.status === 404;
+    }
+
+    get isServerError(): boolean {
+        return this.status >= 500;
+    }
+}
+
+// ============================================
 // HELPER FUNCTIONS
 // ============================================
 
@@ -95,8 +122,33 @@ function getAuthHeaders(): HeadersInit {
 
 async function handleResponse<T>(response: Response): Promise<T> {
     if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: 'Request failed' }));
-        throw new Error(error.error || error.message || 'Request failed');
+        const errorData = await response.json().catch(() => ({ error: 'Erro na requisição' }));
+
+        // Specific messages by HTTP status
+        let message: string;
+        switch (response.status) {
+            case 401:
+                message = 'Sessão expirada. Faça login novamente.';
+                break;
+            case 403:
+                message = 'Você não tem permissão para esta ação.';
+                break;
+            case 404:
+                message = 'Recurso não encontrado.';
+                break;
+            case 400:
+                message = errorData.error || 'Dados inválidos.';
+                break;
+            case 500:
+            case 502:
+            case 503:
+                message = 'Erro no servidor. Tente novamente mais tarde.';
+                break;
+            default:
+                message = errorData.error || errorData.message || 'Erro na requisição';
+        }
+
+        throw new ApiError(message, response.status, errorData.code);
     }
     return response.json();
 }

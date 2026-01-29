@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '';
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+import { validateAuthHeader, isAuthError } from '../../lib/auth';
+import { getSupabaseClient, isNotFoundError } from '../../lib/supabase';
 
 /**
  * GET /api/trello/status
@@ -10,29 +8,14 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PU
  */
 export async function GET(request: NextRequest) {
     try {
-        // Get auth token
-        const authHeader = request.headers.get('Authorization');
-        if (!authHeader?.startsWith('Bearer ')) {
-            return NextResponse.json(
-                { error: 'Unauthorized' },
-                { status: 401 }
-            );
+        // Validate authentication
+        const auth = validateAuthHeader(request);
+        if (isAuthError(auth)) {
+            return NextResponse.json({ error: auth.error }, { status: auth.status });
         }
 
-        const token = authHeader.substring(7);
-        
-        // Decode JWT to get user ID (simple decode, already validated by middleware)
-        const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
-        const userId = payload.userId;
-
-        if (!userId) {
-            return NextResponse.json(
-                { error: 'Invalid token' },
-                { status: 401 }
-            );
-        }
-
-        const supabase = createClient(supabaseUrl, supabaseKey);
+        const { userId } = auth.data;
+        const supabase = getSupabaseClient();
 
         // Get user's Trello config
         const { data: config, error } = await supabase
@@ -41,10 +24,10 @@ export async function GET(request: NextRequest) {
             .eq('user_id', userId)
             .single();
 
-        if (error && error.code !== 'PGRST116') {
+        if (error && !isNotFoundError(error)) {
             console.error('Error fetching Trello config:', error);
             return NextResponse.json(
-                { error: 'Failed to fetch Trello configuration' },
+                { error: 'Erro ao buscar configuração do Trello' },
                 { status: 500 }
             );
         }
@@ -86,7 +69,7 @@ export async function GET(request: NextRequest) {
     } catch (error) {
         console.error('Error in /api/trello/status:', error);
         return NextResponse.json(
-            { error: 'Internal server error' },
+            { error: 'Erro interno do servidor' },
             { status: 500 }
         );
     }

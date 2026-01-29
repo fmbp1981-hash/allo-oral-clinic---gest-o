@@ -3,8 +3,8 @@ import { supabase } from '../../lib/supabase';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET!;
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET!;
+const JWT_SECRET = process.env.JWT_SECRET || 'default-secret-change-in-production';
+const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'default-refresh-secret-change-in-production';
 
 // Helper to generate tokens
 const generateTokens = (userId: string, tenantId: string) => {
@@ -18,6 +18,17 @@ const generateTokens = (userId: string, tenantId: string) => {
 
   return { accessToken, refreshToken };
 };
+
+interface UserRecord {
+  id: string;
+  name: string;
+  email: string;
+  password: string;
+  clinic_name: string;
+  avatar_url: string;
+  role: string;
+  tenant_id?: string;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -48,7 +59,7 @@ export async function POST(request: NextRequest) {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // Create user
-    const { data: user, error } = await supabase
+    const { data, error } = await supabase
       .from('users')
       .insert({
         name,
@@ -61,7 +72,9 @@ export async function POST(request: NextRequest) {
       .select()
       .single();
 
-    if (error) {
+    const user = data as UserRecord | null;
+
+    if (error || !user) {
       console.error('Registration error:', error);
       return NextResponse.json(
         { error: 'Erro ao criar usuário' },
@@ -73,7 +86,7 @@ export async function POST(request: NextRequest) {
     const { accessToken, refreshToken } = generateTokens(user.id, user.tenant_id || user.id);
 
     // Remove sensitive data
-    const { password: _, ...safeUser } = user;
+    const { password: _pwd, ...safeUser } = user;
 
     return NextResponse.json({
       user: safeUser,
@@ -81,7 +94,7 @@ export async function POST(request: NextRequest) {
       accessToken,
       refreshToken,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Registration error:', error);
     return NextResponse.json(
       { error: 'Erro ao registrar usuário' },

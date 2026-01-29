@@ -1,24 +1,133 @@
-import { createClient } from '@supabase/supabase-js';
+/**
+ * Supabase Client Factory
+ * Centralized Supabase client creation with lazy initialization
+ */
 
-const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { config } from './config';
 
-// Don't throw during build time - will throw at runtime if not configured
-function getSupabaseClient() {
-  if (!supabaseUrl || !supabaseServiceKey) {
-    throw new Error('Missing Supabase environment variables');
-  }
-  return createClient(supabaseUrl, supabaseServiceKey);
+// Database types
+export interface DbUser {
+  id: string;
+  name: string;
+  email: string;
+  password: string;
+  clinic_name: string;
+  avatar_url: string;
+  role: string;
+  tenant_id?: string;
+  refresh_token_hash?: string;
+  reset_token?: string | null;
+  reset_token_expires?: string | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
-// Lazy initialization to avoid build-time errors
-let _supabase: ReturnType<typeof createClient> | null = null;
+export interface DbTrelloConfig {
+  id: string;
+  user_id: string;
+  api_key: string;
+  token: string;
+  board_id?: string;
+  board_name?: string;
+  sync_enabled: boolean;
+  list_mapping?: Record<string, string>;
+  webhook_id?: string;
+  created_at?: string;
+  updated_at?: string;
+}
 
-export const supabase = new Proxy({} as ReturnType<typeof createClient>, {
-  get(_, prop) {
-    if (!_supabase) {
-      _supabase = getSupabaseClient();
+export interface DbTrelloCardMapping {
+  id: string;
+  user_id: string;
+  opportunity_id: string;
+  trello_card_id: string;
+  trello_board_id: string;
+  trello_list_id?: string;
+  last_synced_at?: string;
+  sync_direction?: 'to_trello' | 'from_trello' | 'bidirectional';
+}
+
+// Singleton instance
+let _supabaseInstance: SupabaseClient | null = null;
+
+/**
+ * Get or create Supabase client instance
+ * Uses service role key for server-side operations
+ *
+ * @throws Error if Supabase is not configured
+ */
+export function getSupabaseClient(): SupabaseClient {
+  if (_supabaseInstance) {
+    return _supabaseInstance;
+  }
+
+  const url = config.supabase.url;
+  const key = config.supabase.serviceKey || config.supabase.anonKey;
+
+  if (!url || !key) {
+    throw new Error(
+      'Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables.'
+    );
+  }
+
+  _supabaseInstance = createClient(url, key, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
+
+  return _supabaseInstance;
+}
+
+/**
+ * Create a new Supabase client instance (for cases where you need isolation)
+ * This is useful for webhooks or when you need a fresh client
+ */
+export function createSupabaseClient(): SupabaseClient {
+  const url = config.supabase.url;
+  const key = config.supabase.serviceKey || config.supabase.anonKey;
+
+  if (!url || !key) {
+    throw new Error(
+      'Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables.'
+    );
+  }
+
+  return createClient(url, key, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
+}
+
+/**
+ * Helper to check if a Supabase error is "not found"
+ */
+export function isNotFoundError(error: { code?: string } | null): boolean {
+  return error?.code === 'PGRST116';
+}
+
+/**
+ * Helper to check if Supabase is configured
+ */
+export function isSupabaseConfigured(): boolean {
+  return config.supabase.isConfigured;
+}
+
+// Export singleton instance for backwards compatibility
+// Uses lazy initialization via Proxy to avoid build-time errors
+export const supabase = new Proxy({} as SupabaseClient, {
+  get(_, prop: keyof SupabaseClient) {
+    const client = getSupabaseClient();
+    const value = client[prop];
+    if (typeof value === 'function') {
+      return value.bind(client);
     }
-    return (_supabase as Record<string, unknown>)[prop as string];
+    return value;
   },
 });
+
+export default supabase;

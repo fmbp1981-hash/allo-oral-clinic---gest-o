@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { validateAuthHeader, isAuthError } from '../../lib/auth';
+import { getSupabaseClient, isNotFoundError } from '../../lib/supabase';
 import {
     TrelloClient,
     TrelloListMapping,
@@ -7,27 +8,18 @@ import {
     getListIdFromStatus,
 } from '../../lib/trello';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '';
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-
 /**
  * POST /api/trello/sync-opportunity
  * Sync an opportunity to Trello (create or update card)
  */
 export async function POST(request: NextRequest) {
     try {
-        const authHeader = request.headers.get('Authorization');
-        if (!authHeader?.startsWith('Bearer ')) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        const auth = validateAuthHeader(request);
+        if (isAuthError(auth)) {
+            return NextResponse.json({ error: auth.error }, { status: auth.status });
         }
 
-        const token = authHeader.substring(7);
-        const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
-        const userId = payload.userId;
-
-        if (!userId) {
-            return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
-        }
+        const { userId } = auth.data;
 
         const body = await request.json();
         const {
@@ -43,12 +35,12 @@ export async function POST(request: NextRequest) {
 
         if (!opportunityId || !patientName || !status) {
             return NextResponse.json(
-                { error: 'opportunityId, patientName, and status are required' },
+                { error: 'opportunityId, patientName e status são obrigatórios' },
                 { status: 400 }
             );
         }
 
-        const supabase = createClient(supabaseUrl, supabaseKey);
+        const supabase = getSupabaseClient();
 
         // Get Trello config
         const { data: config, error: configError } = await supabase
@@ -57,16 +49,24 @@ export async function POST(request: NextRequest) {
             .eq('user_id', userId)
             .single();
 
-        if (configError || !config?.api_key || !config?.token) {
+        if (configError && !isNotFoundError(configError)) {
+            console.error('Error fetching Trello config:', configError);
             return NextResponse.json(
-                { error: 'Trello not configured' },
+                { error: 'Erro ao buscar configuração do Trello' },
+                { status: 500 }
+            );
+        }
+
+        if (!config?.api_key || !config?.token) {
+            return NextResponse.json(
+                { error: 'Trello não configurado' },
                 { status: 400 }
             );
         }
 
         if (!config.board_id || !config.list_mapping) {
             return NextResponse.json(
-                { error: 'Trello board not configured. Please setup lists first.' },
+                { error: 'Board do Trello não configurado. Configure as listas primeiro.' },
                 { status: 400 }
             );
         }
@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
         const listId = getListIdFromStatus(status, listMapping);
         if (!listId) {
             return NextResponse.json(
-                { error: `No list mapped for status: ${status}` },
+                { error: `Nenhuma lista mapeada para o status: ${status}` },
                 { status: 400 }
             );
         }
@@ -107,11 +107,11 @@ export async function POST(request: NextRequest) {
         if (existingMapping?.trello_card_id || trelloCardId) {
             // Update existing card
             const cardId = existingMapping?.trello_card_id || trelloCardId;
-            
+
             try {
                 // Get current card to check if list changed
                 const currentCard = await client.getCard(cardId);
-                
+
                 if (currentCard.idList !== listId) {
                     // Move card to new list
                     card = await client.moveCard(cardId, listId);
@@ -194,7 +194,7 @@ export async function POST(request: NextRequest) {
     } catch (error) {
         console.error('Error in /api/trello/sync-opportunity:', error);
         return NextResponse.json(
-            { error: 'Internal server error' },
+            { error: 'Erro ao sincronizar com Trello' },
             { status: 500 }
         );
     }
