@@ -502,18 +502,52 @@ export const handleWebhook = async (req: AuthRequest, res: Response) => {
             modelType: model?.modelType,
         });
 
-        // Process different action types
+        // Função auxiliar para buscar oportunidade vinculada ao card
+        async function findOpportunityByCardId(cardId: string) {
+            const { data, error } = await supabase
+                .from('opportunities')
+                .select('*')
+                .eq('trello_card_id', cardId)
+                .single();
+            if (error || !data) return null;
+            return data;
+        }
+
+        // Função auxiliar para atualizar status da oportunidade
+        async function updateOpportunityStatusByCard(cardId: string, newStatus: string) {
+            const opportunity = await findOpportunityByCardId(cardId);
+            if (!opportunity) return;
+            const { error } = await supabase
+                .from('opportunities')
+                .update({ status: newStatus, last_contact: new Date().toISOString() })
+                .eq('id', opportunity.id);
+            if (error) logger.error('Erro ao atualizar status da oportunidade via Trello webhook', error);
+        }
+
+        // Processar tipos de ação
         switch (action.type) {
             case 'updateCard':
-                // Card was updated (could be moved to different list)
+                // Card foi movido entre listas
                 if (action.data?.listAfter && action.data?.listBefore) {
-                    // Card was moved between lists
                     logger.info('Card moved between lists', {
                         cardId: action.data.card?.id,
                         fromList: action.data.listBefore.name,
                         toList: action.data.listAfter.name,
                     });
-                    // Here you would update the opportunity status in the database
+                    // Atualiza status da oportunidade vinculada
+                    // Aqui você pode mapear o ID da lista do Trello para o status do sistema
+                    const listId = action.data.listAfter.id;
+                    // Exemplo de mapeamento (ajuste conforme seu sistema)
+                    let newStatus = null;
+                    const listMapping = model?.listMapping || {};
+                    if (listMapping) {
+                        for (const [status, mappedListId] of Object.entries(listMapping)) {
+                            if (mappedListId === listId) newStatus = status;
+                        }
+                    }
+                    if (newStatus) {
+                        await updateOpportunityStatusByCard(action.data.card.id, newStatus);
+                    }
                 }
                 break;
 
@@ -522,12 +556,14 @@ export const handleWebhook = async (req: AuthRequest, res: Response) => {
                     cardId: action.data?.card?.id,
                     listId: action.data?.list?.id,
                 });
+                // Opcional: criar nova oportunidade se desejar
                 break;
 
             case 'deleteCard':
                 logger.info('Card deleted from Trello', {
                     cardId: action.data?.card?.id,
                 });
+                // Opcional: remover oportunidade vinculada
                 break;
 
             case 'commentCard':
