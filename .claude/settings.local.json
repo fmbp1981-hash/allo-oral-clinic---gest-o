@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir /s /b \"c:\\\\Projects\\\\allo-oral-clinic---gestão\\\\app\\\\api\\\\trello\\\\*.ts\")",
+      "Bash(npm run typecheck:*)",
+      "Bash(npm run build:*)",
+      "Bash(npx tsc:*)",
+      "Bash(find:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nrefactor\\(trello\\): centralizar autenticação, melhorar tipagem e tratamento de erros\n\n- Criar auth.ts com validação JWT segura e type guards\n- Criar config.ts para centralizar variáveis de ambiente\n- Corrigir wrapper supabase.ts com Proxy e tipos completos\n- Atualizar 14 rotas Trello para usar nova autenticação\n- Corrigir TrelloDashboard.tsx com tipagem completa e estados de loading específicos\n- Adicionar rollback em operações otimistas \\(delete/update\\)\n- Substituir alert\\(\\) por mensagens de erro visuais\n- Corrigir SettingsModal para não fechar em caso de erro\n- Adicionar ApiError class com mensagens específicas por HTTP status\n- Remover console.logs de debug\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git push)",
+      "Bash(npm run dev:*)",
+      "Bash(curl:*)"
+    ]
+  }
+}

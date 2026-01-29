@@ -3,6 +3,12 @@ import { supabase } from '../../lib/supabase';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 
+interface UserRecord {
+  id: string;
+  reset_token: string | null;
+  reset_token_expires: string | null;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { email, token, newPassword } = await request.json();
@@ -25,11 +31,13 @@ export async function POST(request: NextRequest) {
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
 
     // Find user with valid token
-    const { data: user, error } = await supabase
+    const { data, error } = await supabase
       .from('users')
       .select('id, reset_token, reset_token_expires')
       .eq('email', email.toLowerCase().trim())
       .single();
+
+    const user = data as UserRecord | null;
 
     if (error || !user) {
       return NextResponse.json(
@@ -46,7 +54,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (new Date(user.reset_token_expires) < new Date()) {
+    if (!user.reset_token_expires || new Date(user.reset_token_expires) < new Date()) {
       return NextResponse.json(
         { error: 'Token expirado. Solicite uma nova redefinição.' },
         { status: 400 }
@@ -77,7 +85,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       message: 'Senha redefinida com sucesso. Você já pode fazer login.',
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Password reset error:', error);
     return NextResponse.json(
       { error: 'Erro ao redefinir senha' },

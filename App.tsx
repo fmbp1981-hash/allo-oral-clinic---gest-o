@@ -606,7 +606,7 @@ const DatabasePage = ({
 
 // --- Main App Shell ---
 
-type Page = 'dashboard' | 'search' | 'pipeline' | 'database';
+type Page = 'dashboard' | 'search' | 'pipeline' | 'database' | 'trello';
 
 const AppContent = ({ user, setUser }: { user: User | null; setUser: (user: User | null) => void }) => {
   const toast = useToast();
@@ -841,6 +841,9 @@ const AppContent = ({ user, setUser }: { user: User | null; setUser: (user: User
           <NavItem id="search" icon={Search} label="Busca Ativa" />
           <NavItem id="pipeline" icon={Columns} label="Pipeline" />
           <NavItem id="database" icon={Database} label="Base de Pacientes" />
+
+          <div className="mt-4 mb-2 px-4 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Integrações</div>
+          <NavItem id="trello" icon={Activity} label="Trello Board" />
         </nav>
 
         <div className="p-4 border-t border-gray-100 dark:border-gray-700 space-y-1">
@@ -960,6 +963,11 @@ const AppContent = ({ user, setUser }: { user: User | null; setUser: (user: User
                 opportunities={opportunities}
                 onRefresh={handleRefreshPatients}
               />
+            </div>
+          )}
+          {page === 'trello' && (
+            <div className="h-full overflow-y-auto">
+              <TrelloDashboard />
             </div>
           )}
         </main>
