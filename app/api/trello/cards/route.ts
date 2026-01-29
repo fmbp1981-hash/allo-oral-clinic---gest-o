@@ -62,8 +62,13 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        const cards = await client.getCards({ boardId: boardId || undefined, listId: listId || undefined });
-
+        let cards = await client.getCards({ boardId: boardId || undefined, listId: listId || undefined });
+        // Log the raw cards array for debugging
+        console.log('[TRELLO][DEBUG] Raw cards response:', JSON.stringify(cards));
+        // Filter out null/invalid cards defensively
+        if (!Array.isArray(cards)) cards = [];
+        cards = cards.filter(card => card && typeof card === 'object' && typeof card.name === 'string' && card.name.trim() !== '');
+        console.log('[TRELLO][DEBUG] Filtered cards response:', JSON.stringify(cards));
         return NextResponse.json(cards);
     } catch (error) {
         console.error('Error in GET /api/trello/cards:', error);
