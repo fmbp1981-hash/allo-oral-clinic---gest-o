@@ -143,7 +143,7 @@ export default function TrelloDashboard() {
         <div>
           <h3 className="text-xl font-semibold mb-2">Cards</h3>
           <ul className="space-y-2">
-            {cards.map(card => (
+            {cards.filter(card => card && card.name).map(card => (
               <li key={card.id} className="border p-2 rounded flex justify-between items-center">
                 <div>
                   <div className="font-bold">{card.name}</div>
