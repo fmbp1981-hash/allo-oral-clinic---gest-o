@@ -7,10 +7,22 @@ export enum OpportunityStatus {
   ARCHIVED = 'ARCHIVED'   // Arquivado/Não interessado
 }
 
+export type ClinicalRecordType = 'consultation' | 'procedure' | 'exam' | 'prescription' | 'note';
+
 export interface ClinicalRecord {
+  id?: string;
+  patientId?: string;
   date: string;
   description: string;
-  type?: string; // ex: 'procedure', 'consultation', 'exam'
+  type?: ClinicalRecordType;
+  diagnosis?: string;
+  treatment?: string;
+  medications?: string;
+  observations?: string;
+  dentistName?: string;
+  attachments?: string[];
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface User {
