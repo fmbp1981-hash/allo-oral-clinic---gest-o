@@ -116,7 +116,7 @@ export const UserManagement = () => {
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('auth_token');
       const response = await fetch('/api/admin/users', {
         headers: {
           Authorization: `Bearer ${token}`,

@@ -80,7 +80,7 @@ export const BulkMessageModal = ({
   const fetchTemplates = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('auth_token');
 
       // Buscar configurações do usuário para templates padrão
       const configResponse = await fetch('/api/settings', {
@@ -222,7 +222,7 @@ Podemos agendar uma consulta?`,
     setStep('sending');
 
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('auth_token');
       const response = await fetch('/api/whatsapp/send-bulk', {
         method: 'POST',
         headers: {

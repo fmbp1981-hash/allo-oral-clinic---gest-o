@@ -187,7 +187,7 @@ export const UserConfigModal = ({ isOpen, onClose, user, onSaved }: UserConfigMo
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('auth_token');
       const response = await fetch(`/api/admin/users/${user.id}/config`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -212,7 +212,7 @@ export const UserConfigModal = ({ isOpen, onClose, user, onSaved }: UserConfigMo
     setSaving(true);
     setError(null);
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('auth_token');
 
       // Save user data
       await fetch(`/api/admin/users/${user.id}`, {
