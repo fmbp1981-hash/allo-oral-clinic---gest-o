@@ -19,7 +19,8 @@ import {
   PlusCircle,
   ArrowRight,
   Eye,
-  Upload
+  Upload,
+  Send
 } from 'lucide-react';
 import { useToast } from './hooks/useToast';
 import { useConfirm } from './hooks/useConfirm';
@@ -46,6 +47,7 @@ import { Opportunity, OpportunityStatus, Patient, User, Notification } from './t
 import { isAdmin } from './utils/permissions';
 import TrelloDashboard from './components/TrelloDashboard';
 import { UserManagement } from './components/UserManagement';
+import { BulkMessageModal } from './components/BulkMessageModal';
 import {
   searchPatientsByKeyword,
   getStoredOpportunities,
@@ -249,6 +251,7 @@ const SearchPage = ({
   onUpdateStatus,
   onViewDetails,
   onClearAll,
+  onBulkMessage,
   toast,
   user
 }: {
@@ -257,6 +260,7 @@ const SearchPage = ({
   onUpdateStatus: (id: string, s: OpportunityStatus) => void,
   onViewDetails: (o: Opportunity) => void,
   onClearAll: () => void,
+  onBulkMessage: (recipients: Opportunity[]) => void,
   toast: any,
   user: User | null
 }) => {
@@ -335,6 +339,13 @@ const SearchPage = ({
           <div className="flex gap-2">
             {opportunities.length > 0 && (
               <>
+                <button
+                  onClick={() => onBulkMessage(opportunities)}
+                  className="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-green-600 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+                >
+                  <Send size={16} />
+                  Disparo em Massa
+                </button>
                 <button
                   onClick={onClearAll}
                   className="px-4 py-2 text-sm font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors"
@@ -627,6 +638,8 @@ const AppContent = ({ user, setUser }: { user: User | null; setUser: (user: User
   const [profileOpen, setProfileOpen] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [pendingScheduleId, setPendingScheduleId] = useState<string | null>(null);
+  const [bulkMessageOpen, setBulkMessageOpen] = useState(false);
+  const [bulkMessageRecipients, setBulkMessageRecipients] = useState<Opportunity[]>([]);
 
   // Data State
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
@@ -784,6 +797,11 @@ const AppContent = ({ user, setUser }: { user: User | null; setUser: (user: User
     const merged = mergeNewOpportunities(opportunities, [newOpp]);
     setOpportunities(merged);
     toast.success(`Paciente ${patient.name} adicionado ao Pipeline!`);
+  };
+
+  const handleBulkMessage = (recipients: Opportunity[]) => {
+    setBulkMessageRecipients(recipients);
+    setBulkMessageOpen(true);
   };
 
   const NavItem = ({ id, icon: Icon, label }: { id: Page, icon: any, label: string }) => (
@@ -958,6 +976,7 @@ const AppContent = ({ user, setUser }: { user: User | null; setUser: (user: User
                 onUpdateStatus={handleStatusUpdate}
                 onViewDetails={setSelectedOpportunity}
                 onClearAll={handleClearAll}
+                onBulkMessage={handleBulkMessage}
                 toast={toast}
                 user={user}
               />
@@ -1028,6 +1047,18 @@ const AppContent = ({ user, setUser }: { user: User | null; setUser: (user: User
         cancelText={confirmState.cancelText}
         type={confirmState.type}
         loading={confirmState.loading}
+      />
+
+      <BulkMessageModal
+        isOpen={bulkMessageOpen}
+        onClose={() => {
+          setBulkMessageOpen(false);
+          setBulkMessageRecipients([]);
+        }}
+        recipients={bulkMessageRecipients}
+        onSent={() => {
+          toast.success('Mensagens enviadas com sucesso!');
+        }}
       />
     </div >
   );
