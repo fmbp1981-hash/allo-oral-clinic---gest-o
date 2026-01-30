@@ -45,6 +45,7 @@ import { ImportPatientsModal } from './components/ImportPatientsModal';
 import { Opportunity, OpportunityStatus, Patient, User, Notification } from './types';
 import { isAdmin } from './utils/permissions';
 import TrelloDashboard from './components/TrelloDashboard';
+import { UserManagement } from './components/UserManagement';
 import {
   searchPatientsByKeyword,
   getStoredOpportunities,
@@ -60,7 +61,7 @@ import {
 
 // --- Page Components ---
 
-type PageType = 'dashboard' | 'search' | 'pipeline' | 'database' | 'trello';
+type PageType = 'dashboard' | 'search' | 'pipeline' | 'database' | 'trello' | 'users';
 
 const DashboardPage = ({
   opportunities,
@@ -613,7 +614,7 @@ const DatabasePage = ({
 
 // --- Main App Shell ---
 
-type Page = 'dashboard' | 'search' | 'pipeline' | 'database' | 'trello';
+type Page = 'dashboard' | 'search' | 'pipeline' | 'database' | 'trello' | 'users';
 
 const AppContent = ({ user, setUser }: { user: User | null; setUser: (user: User | null) => void }) => {
   const toast = useToast();
@@ -851,6 +852,14 @@ const AppContent = ({ user, setUser }: { user: User | null; setUser: (user: User
 
           <div className="mt-4 mb-2 px-4 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Integrações</div>
           <NavItem id="trello" icon={Activity} label="Trello Board" />
+
+          {/* Seção Admin - Apenas para administradores */}
+          {isAdmin(user) && (
+            <>
+              <div className="mt-4 mb-2 px-4 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Administração</div>
+              <NavItem id="users" icon={Users} label="Usuários" />
+            </>
+          )}
         </nav>
 
         <div className="p-4 border-t border-gray-100 dark:border-gray-700 space-y-1">
@@ -977,6 +986,11 @@ const AppContent = ({ user, setUser }: { user: User | null; setUser: (user: User
           {page === 'trello' && (
             <div className="h-full overflow-y-auto">
               <TrelloDashboard />
+            </div>
+          )}
+          {page === 'users' && isAdmin(user) && (
+            <div className="h-full overflow-y-auto">
+              <UserManagement />
             </div>
           )}
         </main>
