@@ -43,6 +43,7 @@ import { ProfileModal } from './components/ProfileModal';
 import { ScheduleModal } from './components/ScheduleModal';
 import { ImportPatientsModal } from './components/ImportPatientsModal';
 import { Opportunity, OpportunityStatus, Patient, User, Notification } from './types';
+import { isAdmin } from './utils/permissions';
 import TrelloDashboard from './components/TrelloDashboard';
 import {
   searchPatientsByKeyword,
@@ -247,14 +248,16 @@ const SearchPage = ({
   onUpdateStatus,
   onViewDetails,
   onClearAll,
-  toast
+  toast,
+  user
 }: {
   opportunities: Opportunity[],
   setOpportunities: (o: Opportunity[]) => void,
   onUpdateStatus: (id: string, s: OpportunityStatus) => void,
   onViewDetails: (o: Opportunity) => void,
   onClearAll: () => void,
-  toast: any
+  toast: any,
+  user: User | null
 }) => {
   const [query, setQuery] = useState('');
   const [limit, setLimit] = useState(5);
@@ -281,7 +284,7 @@ const SearchPage = ({
     <div className="space-y-6 animate-fade-in">
       <div>
         <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Busca Ativa (Reativação)</h2>
-        <p className="text-gray-500 dark:text-gray-400">Localize pacientes no banco de dados (Neon) para iniciar o processo de reativação.</p>
+        <p className="text-gray-500 dark:text-gray-400">Localize pacientes {isAdmin(user) && 'no banco de dados (Supabase) '}para iniciar o processo de reativação.</p>
       </div>
 
       <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
@@ -400,13 +403,15 @@ const DatabasePage = ({
   loading,
   opportunities,
   onAddToPipeline,
-  onRefresh
+  onRefresh,
+  user
 }: {
   patients: Patient[],
   loading: boolean,
   opportunities: Opportunity[],
   onAddToPipeline: (patient: Patient) => void,
-  onRefresh: () => void
+  onRefresh: () => void,
+  user: User | null
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterTag, setFilterTag] = useState('all');
@@ -440,10 +445,12 @@ const DatabasePage = ({
           <p className="text-gray-500 dark:text-gray-400">Visualização completa dos registros odontológicos e status de reativação.</p>
         </div>
         <div className="flex gap-3 items-center self-end">
-          <div className="hidden sm:flex text-xs bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 px-2 py-1 rounded border border-green-200 dark:border-green-700 items-center h-9">
-            <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
-            Supabase Conectado
-          </div>
+          {isAdmin(user) && (
+            <div className="hidden sm:flex text-xs bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 px-2 py-1 rounded border border-green-200 dark:border-green-700 items-center h-9">
+              <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+              Supabase Conectado
+            </div>
+          )}
           <button
             onClick={() => setShowImportModal(true)}
             disabled={loading}
@@ -857,7 +864,7 @@ const AppContent = ({ user, setUser }: { user: User | null; setUser: (user: User
 
 
           {/* Botão de Integrações - Apenas para Admin */}
-          {user.email === 'fmbp1981@gmail.com' && (
+          {isAdmin(user) && (
             <button
               onClick={() => setSettingsOpen(true)}
               className="flex items-center w-full px-4 py-3 text-sm text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-gray-700 rounded-lg transition-colors"
@@ -943,6 +950,7 @@ const AppContent = ({ user, setUser }: { user: User | null; setUser: (user: User
                 onViewDetails={setSelectedOpportunity}
                 onClearAll={handleClearAll}
                 toast={toast}
+                user={user}
               />
             </div>
           )}
@@ -962,6 +970,7 @@ const AppContent = ({ user, setUser }: { user: User | null; setUser: (user: User
                 onAddToPipeline={handleAddFromDatabase}
                 opportunities={opportunities}
                 onRefresh={handleRefreshPatients}
+                user={user}
               />
             </div>
           )}

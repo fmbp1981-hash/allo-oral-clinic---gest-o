@@ -520,5 +520,26 @@ export const importPatientsFromFile = async (patients: any[]): Promise<{
   }
 };
 
+// --- Trello Import Functions ---
+
+export const importPatientFromTrello = async (cardData: {
+  id: string;
+  name: string;
+  desc?: string;
+}): Promise<Patient> => {
+  try {
+    const patient: Partial<Patient> = {
+      name: cardData.name,
+      phone: '', // User will fill in later
+      history: cardData.desc ? [cardData.desc] : [],
+    };
+
+    return await createPatient(patient);
+  } catch (error) {
+    console.error('Import patient from Trello error:', error);
+    throw error;
+  }
+};
+
 // Export mock functions for backward compatibility (will be removed later)
 export const getAllPatientsMock = getAllPatients;
