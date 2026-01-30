@@ -35,6 +35,7 @@ interface UserRecord {
   role: string;
   tenant_id?: string;
   refresh_token_hash?: string;
+  approved?: boolean;
 }
 
 export async function POST(request: NextRequest) {
@@ -72,6 +73,15 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       );
     }
+
+    // Check if user is approved (admin users are always approved)
+    if (user.approved === false && user.role !== 'admin') {
+      return NextResponse.json(
+        { error: 'Sua conta ainda não foi aprovada pelo administrador. Aguarde a liberação do acesso.' },
+        { status: 403 }
+      );
+    }
+
 
     // Generate tokens
     const { accessToken, refreshToken } = generateTokens(user.id, user.tenant_id || user.id);

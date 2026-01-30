@@ -10,7 +10,10 @@ import {
   Clock,
   Shield,
   Eye,
-  UserCog
+  UserCog,
+  UserCheck,
+  UserX,
+  Loader2
 } from 'lucide-react';
 import { UserConfigModal } from './UserConfigModal';
 import { SkeletonTable } from './LoadingSpinner';
@@ -22,6 +25,7 @@ interface UserListItem {
   companyName: string;
   role: 'admin' | 'operador' | 'visualizador';
   status: 'configured' | 'pending';
+  approved: boolean;
   createdAt: string;
   integrations: {
     trello: boolean;
@@ -80,21 +84,19 @@ const IntegrationIndicators = ({ integrations }: { integrations: { trello: boole
   return (
     <div className="flex gap-1">
       <span
-        className={`px-2 py-0.5 rounded text-xs border ${
-          integrations.trello
-            ? 'bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800'
-            : 'bg-gray-50 text-gray-400 border-gray-200 dark:bg-gray-700 dark:text-gray-500 dark:border-gray-600'
-        }`}
+        className={`px-2 py-0.5 rounded text-xs border ${integrations.trello
+          ? 'bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800'
+          : 'bg-gray-50 text-gray-400 border-gray-200 dark:bg-gray-700 dark:text-gray-500 dark:border-gray-600'
+          }`}
         title={integrations.trello ? 'Trello configurado' : 'Trello não configurado'}
       >
         Trello
       </span>
       <span
-        className={`px-2 py-0.5 rounded text-xs border ${
-          integrations.whatsapp
-            ? 'bg-green-50 text-green-600 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800'
-            : 'bg-gray-50 text-gray-400 border-gray-200 dark:bg-gray-700 dark:text-gray-500 dark:border-gray-600'
-        }`}
+        className={`px-2 py-0.5 rounded text-xs border ${integrations.whatsapp
+          ? 'bg-green-50 text-green-600 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800'
+          : 'bg-gray-50 text-gray-400 border-gray-200 dark:bg-gray-700 dark:text-gray-500 dark:border-gray-600'
+          }`}
         title={integrations.whatsapp ? 'WhatsApp configurado' : 'WhatsApp não configurado'}
       >
         WhatsApp
@@ -111,6 +113,7 @@ export const UserManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUser, setSelectedUser] = useState<UserListItem | null>(null);
   const [configModalOpen, setConfigModalOpen] = useState(false);
+  const [approvingUserId, setApprovingUserId] = useState<string | null>(null);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -148,7 +151,7 @@ export const UserManagement = () => {
       user.companyName.toLowerCase().includes(searchTerm.toLowerCase());
 
     if (activeTab === 'pending') {
-      return matchesSearch && user.status === 'pending';
+      return matchesSearch && !user.approved;
     }
 
     if (activeTab === 'roles') {
@@ -173,8 +176,37 @@ export const UserManagement = () => {
     handleCloseConfig();
   };
 
+  const handleApprove = async (userId: string, approve: boolean) => {
+    setApprovingUserId(userId);
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`/api/admin/users/${userId}/approve`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ approved: approve }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Erro ao atualizar aprovação');
+      }
+
+      // Update local state
+      setUsers(prev => prev.map(u =>
+        u.id === userId ? { ...u, approved: approve } : u
+      ));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao atualizar aprovação');
+    } finally {
+      setApprovingUserId(null);
+    }
+  };
+
   const tabs: { id: TabType; label: string; count: number }[] = [
-    { id: 'pending', label: 'Pendentes', count: users.filter((u) => u.status === 'pending').length },
+    { id: 'pending', label: 'Aguardando Aprovação', count: users.filter((u) => !u.approved).length },
     { id: 'all', label: 'Todos os Usuários', count: users.length },
     { id: 'roles', label: 'Administradores', count: users.filter((u) => u.role === 'admin').length },
   ];
@@ -210,19 +242,17 @@ export const UserManagement = () => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors flex items-center gap-2 ${
-                  activeTab === tab.id
-                    ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400'
-                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-                }`}
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors flex items-center gap-2 ${activeTab === tab.id
+                  ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400'
+                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                  }`}
               >
                 {tab.label}
                 <span
-                  className={`px-2 py-0.5 rounded-full text-xs ${
-                    activeTab === tab.id
-                      ? 'bg-indigo-200 text-indigo-800 dark:bg-indigo-800 dark:text-indigo-200'
-                      : 'bg-gray-200 text-gray-600 dark:bg-gray-600 dark:text-gray-300'
-                  }`}
+                  className={`px-2 py-0.5 rounded-full text-xs ${activeTab === tab.id
+                    ? 'bg-indigo-200 text-indigo-800 dark:bg-indigo-800 dark:text-indigo-200'
+                    : 'bg-gray-200 text-gray-600 dark:bg-gray-600 dark:text-gray-300'
+                    }`}
                 >
                   {tab.count}
                 </span>
@@ -321,6 +351,38 @@ export const UserManagement = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">
                         <div className="flex justify-end gap-2">
+                          {/* Approve/Reject buttons - show only for non-approved users */}
+                          {!user.approved && user.role !== 'admin' && (
+                            <>
+                              <button
+                                onClick={() => handleApprove(user.id, true)}
+                                disabled={approvingUserId === user.id}
+                                className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors disabled:opacity-50"
+                                title="Aprovar usuário"
+                              >
+                                {approvingUserId === user.id ? (
+                                  <Loader2 size={18} className="animate-spin" />
+                                ) : (
+                                  <UserCheck size={18} />
+                                )}
+                              </button>
+                            </>
+                          )}
+                          {/* Revoke approval - show for approved non-admin users */}
+                          {user.approved && user.role !== 'admin' && (
+                            <button
+                              onClick={() => handleApprove(user.id, false)}
+                              disabled={approvingUserId === user.id}
+                              className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50"
+                              title="Revogar aprovação"
+                            >
+                              {approvingUserId === user.id ? (
+                                <Loader2 size={18} className="animate-spin" />
+                              ) : (
+                                <UserX size={18} />
+                              )}
+                            </button>
+                          )}
                           <button
                             onClick={() => handleOpenConfig(user)}
                             className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors"
@@ -337,6 +399,7 @@ export const UserManagement = () => {
                           </button>
                         </div>
                       </td>
+
                     </tr>
                   ))
                 ) : (

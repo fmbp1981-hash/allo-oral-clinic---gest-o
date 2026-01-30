@@ -9,6 +9,7 @@ interface UserRecord {
   clinic_name: string;
   role: string;
   created_at: string;
+  approved?: boolean;
 }
 
 interface UserListItem {
@@ -18,6 +19,7 @@ interface UserListItem {
   companyName: string;
   role: 'admin' | 'operador' | 'visualizador';
   status: 'configured' | 'pending';
+  approved: boolean;
   createdAt: string;
   integrations: {
     trello: boolean;
@@ -63,7 +65,7 @@ export async function GET(request: NextRequest) {
     // Buscar todos os usuários
     const { data: users, error: usersError } = await supabase
       .from('users')
-      .select('id, email, name, clinic_name, role, created_at')
+      .select('id, email, name, clinic_name, role, created_at, approved')
       .order('created_at', { ascending: false });
 
     if (usersError) {
@@ -103,6 +105,7 @@ export async function GET(request: NextRequest) {
         companyName: u.clinic_name || 'Sem empresa',
         role: (u.role as 'admin' | 'operador' | 'visualizador') || 'visualizador',
         status: isConfigured ? 'configured' : 'pending',
+        approved: u.approved ?? (u.role === 'admin'),
         createdAt: u.created_at || new Date().toISOString(),
         integrations: {
           trello: !!hasTrello,

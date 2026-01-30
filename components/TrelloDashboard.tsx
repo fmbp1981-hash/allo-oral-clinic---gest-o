@@ -11,6 +11,7 @@ import {
   TrelloCard,
 } from '../services/trelloService';
 import { TrelloImportModal } from './TrelloImportModal';
+import { ImportTrelloListModal } from './ImportTrelloListModal';
 
 // Form data interface
 interface CardFormData {
@@ -48,6 +49,7 @@ export default function TrelloDashboard() {
   const [importedCards, setImportedCards] = useState<Set<string>>(new Set());
   const [importSuccess, setImportSuccess] = useState<string | null>(null);
   const [importingCard, setImportingCard] = useState<TrelloCard | null>(null);
+  const [importListModalOpen, setImportListModalOpen] = useState(false);
 
   // Memoized filtered cards (avoid filtering on every render)
   const validCards = useMemo(
@@ -405,15 +407,22 @@ export default function TrelloDashboard() {
         </div>
       )}
 
-      {/* New Card Button */}
+      {/* Action Buttons */}
       {selectedList && (
-        <div className="mb-4">
+        <div className="mb-4 flex gap-2">
           <button
             className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={handleOpenCreateCard}
             disabled={cardActionLoading || showCardForm}
           >
             + Novo Card
+          </button>
+          <button
+            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            onClick={() => setImportListModalOpen(true)}
+            disabled={cardActionLoading || validCards.length === 0}
+          >
+            📥 Importar Lista ({validCards.length} cards)
           </button>
         </div>
       )}
@@ -516,11 +525,10 @@ export default function TrelloDashboard() {
                   </div>
                   <div className="flex gap-2 ml-4 flex-shrink-0">
                     <button
-                      className={`transition-colors disabled:opacity-50 ${
-                        importedCards.has(card.id)
+                      className={`transition-colors disabled:opacity-50 ${importedCards.has(card.id)
                           ? 'text-gray-400 dark:text-gray-500 cursor-not-allowed'
                           : 'text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300'
-                      }`}
+                        }`}
                       onClick={() => handleImportCard(card)}
                       disabled={cardActionLoading || importedCards.has(card.id)}
                       title={importedCards.has(card.id) ? 'Já importado' : 'Importar para Base de Pacientes'}
@@ -572,6 +580,19 @@ export default function TrelloDashboard() {
         cardName={importingCard?.name || ''}
         cardDesc={importingCard?.desc || ''}
         onImportSuccess={handleImportSuccess}
+      />
+
+      {/* Import List Modal */}
+      <ImportTrelloListModal
+        isOpen={importListModalOpen}
+        onClose={() => setImportListModalOpen(false)}
+        listId={selectedList || ''}
+        listName={lists.find(l => l.id === selectedList)?.name || ''}
+        cards={validCards}
+        onImportSuccess={(count) => {
+          setImportSuccess(`${count} pacientes importados da lista com sucesso!`);
+          setImportListModalOpen(false);
+        }}
       />
     </div>
   );

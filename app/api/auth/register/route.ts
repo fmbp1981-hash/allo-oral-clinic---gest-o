@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create user
+    // Create user with 'visualizador' role and unapproved status
     const { data, error } = await supabase
       .from('users')
       .insert({
@@ -67,10 +67,12 @@ export async function POST(request: NextRequest) {
         password: hashedPassword,
         clinic_name: clinicName || 'Minha Clínica',
         avatar_url: avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=0D8ABC&color=fff`,
-        role: 'user',
+        role: 'visualizador',
+        approved: false,
       })
       .select()
       .single();
+
 
     const user = data as UserRecord | null;
 
