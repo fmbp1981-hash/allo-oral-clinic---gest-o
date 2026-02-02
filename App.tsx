@@ -267,6 +267,7 @@ const SearchPage = ({
   const [query, setQuery] = useState('');
   const [limit, setLimit] = useState(5);
   const [loading, setLoading] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -283,6 +284,14 @@ const SearchPage = ({
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleBulkAction = () => {
+    let targets = opportunities;
+    if (selectedIds.length > 0) {
+      targets = opportunities.filter(o => selectedIds.includes(o.id));
+    }
+    onBulkMessage(targets);
   };
 
   return (
@@ -335,16 +344,18 @@ const SearchPage = ({
 
       <div>
         <div className="flex justify-between items-center mb-3">
-          <h3 className="font-semibold text-gray-800 dark:text-white">Pacientes Selecionados para Reativação</h3>
+          <h3 className="font-semibold text-gray-800 dark:text-white">
+            {selectedIds.length > 0 ? `${selectedIds.length} selecionado(s)` : 'Pacientes Selecionados para Reativação'}
+          </h3>
           <div className="flex gap-2">
             {opportunities.length > 0 && (
               <>
                 <button
-                  onClick={() => onBulkMessage(opportunities)}
+                  onClick={handleBulkAction}
                   className="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-green-600 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
                 >
                   <Send size={16} />
-                  Disparo em Massa
+                  {selectedIds.length > 0 ? `Enviar para ${selectedIds.length}` : 'Disparo em Massa (Todos)'}
                 </button>
                 <button
                   onClick={onClearAll}
@@ -361,7 +372,13 @@ const SearchPage = ({
             )}
           </div>
         </div>
-        <PatientsTable items={opportunities} onUpdateStatus={onUpdateStatus} onViewDetails={onViewDetails} />
+        <PatientsTable
+          items={opportunities}
+          onUpdateStatus={onUpdateStatus}
+          onViewDetails={onViewDetails}
+          selectedIds={selectedIds}
+          onSelectionChange={setSelectedIds}
+        />
       </div>
     </div>
   );
@@ -868,7 +885,7 @@ const AppContent = ({ user, setUser }: { user: User | null; setUser: (user: User
           <NavItem id="pipeline" icon={Columns} label="Pipeline" />
           <NavItem id="database" icon={Database} label="Base de Pacientes" />
 
-          <div className="mt-4 mb-2 px-4 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Integrações</div>
+          <div className="mt-4 mb-2 px-4 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Ferramentas</div>
           <NavItem id="trello" icon={Activity} label="Trello Board" />
 
           {/* Seção Admin - Apenas para administradores */}
@@ -876,6 +893,13 @@ const AppContent = ({ user, setUser }: { user: User | null; setUser: (user: User
             <>
               <div className="mt-4 mb-2 px-4 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Administração</div>
               <NavItem id="users" icon={Users} label="Usuários" />
+              <button
+                onClick={() => { setSettingsOpen(true); setSidebarOpen(false); }}
+                className={`w-full flex items-center px-4 py-3 rounded-lg font-medium transition-colors mb-1 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-200`}
+              >
+                <Settings size={20} className="mr-3 text-gray-400 dark:text-gray-500" />
+                Configurações
+              </button>
             </>
           )}
         </nav>
@@ -890,18 +914,6 @@ const AppContent = ({ user, setUser }: { user: User | null; setUser: (user: User
           </button>
 
 
-          {/* Botão de Integrações - Apenas para Admin */}
-          {isAdmin(user) && (
-            <button
-              onClick={() => setSettingsOpen(true)}
-              className="flex items-center w-full px-4 py-3 text-sm text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-gray-700 rounded-lg transition-colors"
-            >
-              <Settings size={18} className="mr-3" />
-              Integrações
-            </button>
-          )}
-
-
           <button
             onClick={handleLogout}
             className="flex items-center w-full px-4 py-3 text-sm text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
@@ -910,12 +922,12 @@ const AppContent = ({ user, setUser }: { user: User | null; setUser: (user: User
             Sair da Conta
           </button>
 
-                    {/* Rodapé IntelliX.AI */}
+          {/* Rodapé IntelliX.AI */}
           <div className="mt-6 pb-2">
             <div className="flex flex-col items-center justify-center pt-4 border-t border-gray-100 dark:border-gray-700 opacity-90 hover:opacity-100 transition-opacity cursor-default">
-                            <img 
-                src="/intellix-logo.png" 
-                alt="IntelliX.AI" 
+              <img
+                src="/intellix-logo.png"
+                alt="IntelliX.AI"
                 className="h-20 w-auto"
               />
             </div>

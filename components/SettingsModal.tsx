@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { X, MessageCircle, Workflow, FileText, Smartphone, Trello, Check, AlertCircle, Loader2, ExternalLink } from 'lucide-react';
+import { X, MessageCircle, Workflow, FileText, Smartphone, Trello, Check, AlertCircle, Loader2, ExternalLink, Settings as SettingsIcon } from 'lucide-react';
 import { getSettings, saveSettings } from '../services/apiService';
 import { WhatsAppConfig, WhatsAppProvider, saveWhatsAppConfig } from '../services/whatsappService';
-import { 
-  getTrelloStatus, 
-  testTrelloConnection, 
-  saveTrelloConfig, 
-  getTrelloBoards, 
+import {
+  getTrelloStatus,
+  testTrelloConnection,
+  saveTrelloConfig,
+  getTrelloBoards,
   setupTrelloLists,
   TrelloBoard,
   TrelloStatus,
   TrelloListMapping,
-  saveTrelloConfigLocal 
+  saveTrelloConfigLocal
 } from '../services/trelloService';
 
 interface SettingsModalProps {
@@ -21,6 +21,7 @@ interface SettingsModalProps {
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
   const [template, setTemplate] = useState('');
+  const [defaultRole, setDefaultRole] = useState<'admin' | 'user'>('user');
 
   // WhatsApp Provider State
   const [whatsappProvider, setWhatsappProvider] = useState<WhatsAppProvider>('evolution');
@@ -50,10 +51,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
       // Load settings from API (async)
       getSettings().then((settings) => {
         setTemplate(settings.messageTemplate || 'Olá {name}, somos da Allo Oral Clinic. Verificamos seu histórico sobre "{keyword}" e gostaríamos de saber como está a saúde do seu sorriso. Podemos agendar uma avaliação?');
+        setDefaultRole(settings.defaultRole || 'user');
       }).catch((error) => {
         console.warn('Failed to load settings:', error);
         // Use default template on error
         setTemplate('Olá {name}, somos da Allo Oral Clinic. Verificamos seu histórico sobre "{keyword}" e gostaríamos de saber como está a saúde do seu sorriso. Podemos agendar uma avaliação?');
+        setDefaultRole('user');
       });
 
       // Load WhatsApp config from localStorage
@@ -125,9 +128,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     try {
       const result = await testTrelloConnection(trelloApiKey, trelloToken);
       if (result.success) {
-        setTrelloTestResult({ 
-          success: true, 
-          message: `Conectado como: ${result.user?.fullName} (@${result.user?.username})` 
+        setTrelloTestResult({
+          success: true,
+          message: `Conectado como: ${result.user?.fullName} (@${result.user?.username})`
         });
         // Load boards after successful connection
         await loadTrelloBoards();
@@ -178,7 +181,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
 
     try {
       saveSettings({
-        messageTemplate: template
+        messageTemplate: template,
+        defaultRole: defaultRole
       });
 
       // Save WhatsApp config
@@ -241,11 +245,36 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
 
         <div className="p-6 space-y-6 overflow-y-auto">
 
-          {/* Seção WhatsApp Provider */}
+
+          {/* Seção Geral */}
           <div className="space-y-4">
             <div className="flex items-center gap-2 pb-2 border-b border-gray-100 dark:border-gray-700">
+              <SettingsIcon size={16} className="text-gray-500" />
+              <h4 className="text-sm font-bold text-gray-800 dark:text-white">1. Configurações Gerais</h4>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Role Padrão para Novos Usuários
+              </label>
+              <select
+                value={defaultRole}
+                onChange={(e) => setDefaultRole(e.target.value as 'admin' | 'user')}
+                className="block w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm shadow-sm"
+              >
+                <option value="user">Usuário (Padrão)</option>
+                <option value="admin">Administrador</option>
+              </select>
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                Define o nível de acesso para usuários criados via importação ou registro direto.
+              </p>
+            </div>
+          </div>
+
+          {/* Seção WhatsApp Provider */}
+          <div className="space-y-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <div className="flex items-center gap-2 pb-2 border-b border-gray-100 dark:border-gray-700">
               <Smartphone size={16} className="text-gray-500" />
-              <h4 className="text-sm font-bold text-gray-800 dark:text-white">1. Provedor WhatsApp</h4>
+              <h4 className="text-sm font-bold text-gray-800 dark:text-white">2. Provedor WhatsApp</h4>
             </div>
             <p className="text-xs text-gray-500 dark:text-gray-400">
               Escolha qual provedor de WhatsApp deseja usar para envio de mensagens.
@@ -400,7 +429,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
           <div className="space-y-4 pt-4 border-t border-gray-200 dark:border-gray-700">
             <div className="flex items-center gap-2 pb-2 border-b border-gray-100 dark:border-gray-700">
               <MessageCircle size={16} className="text-gray-500" />
-              <h4 className="text-sm font-bold text-gray-800 dark:text-white">2. Template de Mensagem</h4>
+              <h4 className="text-sm font-bold text-gray-800 dark:text-white">3. Template de Mensagem</h4>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
@@ -428,7 +457,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
           <div className="space-y-4 pt-4 border-t border-gray-200 dark:border-gray-700">
             <div className="flex items-center gap-2 pb-2 border-b border-gray-100 dark:border-gray-700">
               <Trello size={16} className="text-blue-500" />
-              <h4 className="text-sm font-bold text-gray-800 dark:text-white">3. Integração Trello</h4>
+              <h4 className="text-sm font-bold text-gray-800 dark:text-white">4. Integração Trello</h4>
               {trelloStatus?.configured && (
                 <span className="ml-auto text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
                   <Check size={12} /> Conectado
@@ -466,9 +495,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                 />
               </div>
               <div className="flex items-center gap-2">
-                <a 
-                  href="https://trello.com/power-ups/admin" 
-                  target="_blank" 
+                <a
+                  href="https://trello.com/power-ups/admin"
+                  target="_blank"
                   rel="noopener noreferrer"
                   className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
                 >
@@ -491,11 +520,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
 
               {/* Test Result */}
               {trelloTestResult && (
-                <div className={`p-3 rounded-lg text-sm flex items-start gap-2 ${
-                  trelloTestResult.success 
-                    ? 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300' 
-                    : 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300'
-                }`}>
+                <div className={`p-3 rounded-lg text-sm flex items-start gap-2 ${trelloTestResult.success
+                  ? 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+                  : 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300'
+                  }`}>
                   {trelloTestResult.success ? <Check size={16} /> : <AlertCircle size={16} />}
                   {trelloTestResult.message}
                 </div>
@@ -563,14 +591,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                   </div>
                   <button
                     onClick={() => setTrelloSyncEnabled(!trelloSyncEnabled)}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                      trelloSyncEnabled ? 'bg-indigo-600' : 'bg-gray-300 dark:bg-gray-600'
-                    }`}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${trelloSyncEnabled ? 'bg-indigo-600' : 'bg-gray-300 dark:bg-gray-600'
+                      }`}
                   >
                     <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        trelloSyncEnabled ? 'translate-x-6' : 'translate-x-1'
-                      }`}
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${trelloSyncEnabled ? 'translate-x-6' : 'translate-x-1'
+                        }`}
                     />
                   </button>
                 </div>

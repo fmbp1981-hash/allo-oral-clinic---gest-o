@@ -72,6 +72,7 @@ export interface AppSettings {
   messagingWebhookUrl?: string; // Webhook de Envio (Disparo Mensagem)
   apiKey?: string;
   messageTemplate?: string; // Template da mensagem de envio
+  defaultRole?: 'admin' | 'user'; // Role padrão para novos usuários
 }
 
 export interface Notification {

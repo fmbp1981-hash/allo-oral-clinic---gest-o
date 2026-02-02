@@ -10,6 +10,9 @@ import {
   TrelloList,
   TrelloCard,
 } from '../services/trelloService';
+import { createOpportunity, importPatientFromTrello } from '../services/apiService';
+import { OpportunityStatus } from '../types';
+import { useToast } from '../hooks/useToast';
 import { TrelloImportModal } from './TrelloImportModal';
 import { ImportTrelloListModal } from './ImportTrelloListModal';
 
@@ -24,6 +27,7 @@ const MAX_CARD_NAME_LENGTH = 100;
 const MAX_CARD_DESC_LENGTH = 5000;
 
 export default function TrelloDashboard() {
+  const toast = useToast();
   // State with proper typing
   const [boards, setBoards] = useState<TrelloBoard[]>([]);
   const [selectedBoard, setSelectedBoard] = useState<string | null>(null);
@@ -320,6 +324,49 @@ export default function TrelloDashboard() {
     }
   }, [importingCard]);
 
+  // Handle import list success with full patient+opportunity creation
+  const handleImportListSuccess = async (count: number, selectedCards: TrelloCard[]) => {
+    let success = 0;
+
+    // Iterate serially to avoid overwhelming backend/rate limits
+    for (const card of selectedCards) {
+      if (importedCards.has(card.id)) continue;
+
+      try {
+        // 1. Create Patient using service
+        // Try importing (which creates patient in DB)
+        const patient = await importPatientFromTrello(card);
+
+        if (patient) {
+          // 2. Create Opportunity
+          await createOpportunity({
+            patientId: patient.id,
+            name: patient.name,
+            phone: patient.phone,
+            status: OpportunityStatus.NEW,
+            keywordFound: 'Import Trello', // Could be formatted better
+            notes: `Importado do Trello em ${new Date().toLocaleDateString()}\nCard: ${card.name}\n${card.desc || ''}`,
+            clinicalRecords: []
+          });
+
+          // Mark as imported locally
+          setImportedCards((prev) => new Set(prev).add(card.id));
+          success++;
+        }
+      } catch (err) {
+        console.error(`Failed to import card ${card.name}:`, err);
+      }
+    }
+
+    if (success > 0) {
+      toast.success(`${success} pacientes importados com sucesso!`);
+      setImportSuccess(`${success} de ${count} cards importados com sucesso!`);
+    } else {
+      toast('Nenhum novo paciente importado (talvez já existam).');
+    }
+    setImportListModalOpen(false);
+  };
+
   // Compute overall loading state
   const isLoading = loadingBoards || loadingLists || loadingCards;
 
@@ -526,8 +573,8 @@ export default function TrelloDashboard() {
                   <div className="flex gap-2 ml-4 flex-shrink-0">
                     <button
                       className={`transition-colors disabled:opacity-50 ${importedCards.has(card.id)
-                          ? 'text-gray-400 dark:text-gray-500 cursor-not-allowed'
-                          : 'text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300'
+                        ? 'text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                        : 'text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300'
                         }`}
                       onClick={() => handleImportCard(card)}
                       disabled={cardActionLoading || importedCards.has(card.id)}
@@ -586,13 +633,9 @@ export default function TrelloDashboard() {
       <ImportTrelloListModal
         isOpen={importListModalOpen}
         onClose={() => setImportListModalOpen(false)}
-        listId={selectedList || ''}
         listName={lists.find(l => l.id === selectedList)?.name || ''}
         cards={validCards}
-        onImportSuccess={(count) => {
-          setImportSuccess(`${count} pacientes importados da lista com sucesso!`);
-          setImportListModalOpen(false);
-        }}
+        onImportSuccess={handleImportListSuccess}
       />
     </div>
   );

@@ -8,19 +8,50 @@ interface PatientsTableProps {
   items: Opportunity[];
   onUpdateStatus: (id: string, status: OpportunityStatus) => void;
   onViewDetails: (opp: Opportunity) => void;
+  selectedIds?: string[];
+  onSelectionChange?: (ids: string[]) => void;
 }
 
-export const PatientsTable: React.FC<PatientsTableProps> = ({ items, onUpdateStatus, onViewDetails }) => {
+export const PatientsTable: React.FC<PatientsTableProps> = ({
+  items,
+  onUpdateStatus,
+  onViewDetails,
+  selectedIds = [],
+  onSelectionChange
+}) => {
   // Estado para controlar qual linha está enviando mensagem
   const [sendingId, setSendingId] = useState<string | null>(null);
+
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!onSelectionChange) return;
+    if (e.target.checked) {
+      onSelectionChange(items.map(i => i.id));
+    } else {
+      onSelectionChange([]);
+    }
+  };
+
+  const handleSelectOne = (e: React.ChangeEvent<HTMLInputElement>, id: string) => {
+    e.stopPropagation();
+    if (!onSelectionChange) return;
+
+    if (e.target.checked) {
+      onSelectionChange([...selectedIds, id]);
+    } else {
+      onSelectionChange(selectedIds.filter(selectedId => selectedId !== id));
+    }
+  };
+
+  const allSelected = items.length > 0 && selectedIds.length === items.length;
+  const isIndeterminate = selectedIds.length > 0 && selectedIds.length < items.length;
 
   const handleActionClick = async (e: React.MouseEvent, opp: Opportunity) => {
     e.stopPropagation();
     setSendingId(opp.id);
-    
+
     try {
       await sendMessageToPatient(opp);
-      
+
       // Se sucesso, atualiza status automaticamente se for novo
       if (opp.status === OpportunityStatus.NEW) {
         onUpdateStatus(opp.id, OpportunityStatus.SENT);
@@ -49,6 +80,18 @@ export const PatientsTable: React.FC<PatientsTableProps> = ({ items, onUpdateSta
       <table className="min-w-full divide-y divide-gray-200">
         <thead className="bg-gray-50/50">
           <tr>
+            <th className="px-6 py-3 w-4">
+              <input
+                type="checkbox"
+                className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                checked={allSelected}
+                ref={input => {
+                  if (input) input.indeterminate = isIndeterminate;
+                }}
+                onChange={handleSelectAll}
+                disabled={!onSelectionChange}
+              />
+            </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Paciente</th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Motivo (Tag)</th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Último Procedimento</th>
@@ -59,7 +102,17 @@ export const PatientsTable: React.FC<PatientsTableProps> = ({ items, onUpdateSta
         </thead>
         <tbody className="bg-white divide-y divide-gray-100">
           {items.map((opp) => (
-            <tr key={opp.id} className="hover:bg-gray-50/80 transition-colors group cursor-pointer" onClick={() => onViewDetails(opp)}>
+            <tr key={opp.id} className={`hover:bg-gray-50/80 transition-colors group cursor-pointer ${selectedIds.includes(opp.id) ? 'bg-indigo-50/30' : ''}`} onClick={() => onViewDetails(opp)}>
+              <td className="px-6 py-4 w-4">
+                <input
+                  type="checkbox"
+                  className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                  checked={selectedIds.includes(opp.id)}
+                  onChange={(e) => handleSelectOne(e, opp.id)}
+                  onClick={(e) => e.stopPropagation()}
+                  disabled={!onSelectionChange}
+                />
+              </td>
               <td className="px-6 py-4 whitespace-nowrap">
                 <div className="flex items-center">
                   <div className="flex-shrink-0 h-9 w-9 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-700 font-bold text-sm">
@@ -84,7 +137,7 @@ export const PatientsTable: React.FC<PatientsTableProps> = ({ items, onUpdateSta
                 {opp.clinicalRecords && opp.clinicalRecords.length > 0 ? (
                   <div className="text-xs text-gray-600 max-w-[200px] truncate">
                     <span className="font-semibold text-gray-800">
-                      {new Date(opp.clinicalRecords[0].date).toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'})}:
+                      {new Date(opp.clinicalRecords[0].date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}:
                     </span> {opp.clinicalRecords[0].description}
                   </div>
                 ) : (
@@ -99,11 +152,11 @@ export const PatientsTable: React.FC<PatientsTableProps> = ({ items, onUpdateSta
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 <div className="flex items-center justify-end space-x-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                  
+
                   <button
-                     onClick={(e) => { e.stopPropagation(); onViewDetails(opp); }}
-                     className="p-1.5 text-gray-400 hover:bg-gray-100 rounded-md transition-colors"
-                     title="Ver Detalhes Completos"
+                    onClick={(e) => { e.stopPropagation(); onViewDetails(opp); }}
+                    className="p-1.5 text-gray-400 hover:bg-gray-100 rounded-md transition-colors"
+                    title="Ver Detalhes Completos"
                   >
                     <Eye size={18} />
                   </button>
@@ -111,11 +164,10 @@ export const PatientsTable: React.FC<PatientsTableProps> = ({ items, onUpdateSta
                   <button
                     onClick={(e) => handleActionClick(e, opp)}
                     disabled={sendingId === opp.id}
-                    className={`p-1.5 rounded-md transition-colors ${
-                      sendingId === opp.id 
-                        ? 'bg-gray-50 text-gray-400 cursor-not-allowed' 
-                        : 'text-green-600 hover:bg-green-50'
-                    }`}
+                    className={`p-1.5 rounded-md transition-colors ${sendingId === opp.id
+                      ? 'bg-gray-50 text-gray-400 cursor-not-allowed'
+                      : 'text-green-600 hover:bg-green-50'
+                      }`}
                     title="Enviar Mensagem (WhatsApp)"
                   >
                     {sendingId === opp.id ? (
@@ -124,7 +176,7 @@ export const PatientsTable: React.FC<PatientsTableProps> = ({ items, onUpdateSta
                       <MessageCircle size={18} />
                     )}
                   </button>
-                  
+
                   <div className="relative group/menu">
                     <button className="text-gray-400 hover:bg-gray-100 p-1.5 rounded-md">
                       <MoreHorizontal size={18} />

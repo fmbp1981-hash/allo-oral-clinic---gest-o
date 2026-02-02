@@ -316,11 +316,11 @@ export const updateOpportunityStatus = async (
     const updated = current.map(o =>
       o.id === oppId
         ? {
-            ...o,
-            status: newStatus,
-            lastContact: new Date().toISOString(),
-            ...(scheduledDate ? { scheduledDate } : {}),
-          }
+          ...o,
+          status: newStatus,
+          lastContact: new Date().toISOString(),
+          ...(scheduledDate ? { scheduledDate } : {}),
+        }
         : o
     );
     saveOpportunitiesLocal(updated);
@@ -340,9 +340,29 @@ export const updateOpportunityNotes = async (oppId: string, notes: string): Prom
     // Update local storage
     const current = getStoredOpportunities();
     const updated = current.map(o => (o.id === oppId ? { ...o, notes } : o));
+
     saveOpportunitiesLocal(updated);
   } catch (error) {
     console.error('Update opportunity notes error:', error);
+    throw error;
+  }
+};
+
+export const createOpportunity = async (opportunity: Partial<Opportunity>): Promise<Opportunity> => {
+  try {
+    const newOpportunity = await fetchWithAuth('/opportunities', {
+      method: 'POST',
+      body: JSON.stringify(opportunity),
+    });
+
+    // Update local storage
+    const current = getStoredOpportunities();
+    const updated = mergeNewOpportunities(current, [newOpportunity]);
+    saveOpportunitiesLocal(updated);
+
+    return newOpportunity;
+  } catch (error) {
+    console.error('Create opportunity error:', error);
     throw error;
   }
 };
@@ -439,7 +459,7 @@ export const saveSettings = async (settings: Partial<AppSettings>): Promise<void
     // Merge with existing settings to ensure we have all required fields
     const existingSettings = await getSettings();
     const mergedSettings = { ...existingSettings, ...settings };
-    
+
     await fetchWithAuth('/settings', {
       method: 'POST',
       body: JSON.stringify(mergedSettings),
