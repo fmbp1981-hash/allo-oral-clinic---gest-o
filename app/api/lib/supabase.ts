@@ -55,7 +55,7 @@ let _supabaseInstance: SupabaseClient | null = null;
  * Get or create Supabase client instance
  * Uses service role key for server-side operations
  *
- * @throws Error if Supabase is not configured
+ * @throws Error if Supabase is not configured (at runtime, not build time)
  */
 export function getSupabaseClient(): SupabaseClient {
   if (_supabaseInstance) {
@@ -65,7 +65,29 @@ export function getSupabaseClient(): SupabaseClient {
   const url = config.supabase.url;
   const key = config.supabase.serviceKey || config.supabase.anonKey;
 
+  // During build time, env vars may not be available
+  // Return a placeholder that will error at runtime if actually used
   if (!url || !key) {
+    // Check if we're in build phase (not a real request)
+    if (typeof window === 'undefined' && !process.env.VERCEL_ENV) {
+      // Return a mock client that throws on actual use
+      return new Proxy({} as SupabaseClient, {
+        get(_, prop) {
+          // Allow checking 'from' property existence without error
+          if (prop === 'from') {
+            return () => {
+              throw new Error(
+                'Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables.'
+              );
+            };
+          }
+          throw new Error(
+            'Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables.'
+          );
+        },
+      }) as SupabaseClient;
+    }
+
     throw new Error(
       'Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables.'
     );
