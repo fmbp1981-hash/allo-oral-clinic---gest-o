@@ -68,28 +68,31 @@ export function getSupabaseClient(): SupabaseClient {
   // During build time, env vars may not be available
   // Return a placeholder that will error at runtime if actually used
   if (!url || !key) {
-    // Check if we're in build phase (not a real request)
-    if (typeof window === 'undefined' && !process.env.VERCEL_ENV) {
-      // Return a mock client that throws on actual use
+    // Only return mock during Next.js static generation/build phase
+    // When VERCEL is set, we're in Vercel environment and should throw proper error
+    if (!process.env.VERCEL) {
+      // Local build without env vars - return mock that errors on use
       return new Proxy({} as SupabaseClient, {
         get(_, prop) {
-          // Allow checking 'from' property existence without error
           if (prop === 'from') {
-            return () => {
-              throw new Error(
-                'Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables.'
-              );
-            };
+            return () => ({
+              select: () => ({ data: null, error: { message: 'Supabase not configured' } }),
+              insert: () => ({ data: null, error: { message: 'Supabase not configured' } }),
+              update: () => ({ data: null, error: { message: 'Supabase not configured' } }),
+              delete: () => ({ data: null, error: { message: 'Supabase not configured' } }),
+              single: () => ({ data: null, error: { message: 'Supabase not configured' } }),
+            });
           }
-          throw new Error(
-            'Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables.'
-          );
+          return undefined;
         },
       }) as SupabaseClient;
     }
 
+    // In Vercel but no env vars = configuration error
+    console.error('CRITICAL: Supabase environment variables are not set in Vercel!');
+    console.error('Required: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY');
     throw new Error(
-      'Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables.'
+      'Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables in Vercel dashboard.'
     );
   }
 
