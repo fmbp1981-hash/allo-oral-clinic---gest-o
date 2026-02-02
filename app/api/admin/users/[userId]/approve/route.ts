@@ -3,14 +3,14 @@ import { validateAuthHeader, isAuthError } from '../../../../lib/auth';
 import { getSupabaseClient } from '../../../../lib/supabase';
 
 interface RouteParams {
-    params: Promise<{ id: string }>;
+    params: Promise<{ userId: string }>;
 }
 
-// POST /api/admin/users/[id]/approve
+// POST /api/admin/users/[userId]/approve
 // Approve or revoke user approval
 export async function POST(request: NextRequest, { params }: RouteParams) {
     try {
-        const { id } = await params;
+        const { userId } = await params;
         const payload = await validateAuthHeader(request);
 
         if (!payload) {
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         const { data, error } = await supabase
             .from('users')
             .update({ approved })
-            .eq('id', id)
+            .eq('id', userId)
             .select('id, name, email, approved')
             .single();
 
