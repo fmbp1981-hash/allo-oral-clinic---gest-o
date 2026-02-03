@@ -1,18 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '../../lib/supabase';
+import { config } from '../../lib/config';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'default-secret-change-in-production';
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'default-refresh-secret-change-in-production';
+// Use centralized config - no insecure fallbacks
+const getJwtSecret = () => {
+  const secret = config.jwt.secret;
+  if (!secret) throw new Error('JWT_SECRET not configured');
+  return secret;
+};
+
+const getJwtRefreshSecret = () => {
+  const secret = config.jwt.refreshSecret;
+  if (!secret) throw new Error('JWT_REFRESH_SECRET not configured');
+  return secret;
+};
 
 // Helper to generate tokens
 const generateTokens = (userId: string, tenantId: string) => {
-  const accessToken = jwt.sign({ userId, tenantId }, JWT_SECRET, {
+  const accessToken = jwt.sign({ userId, tenantId }, getJwtSecret(), {
     expiresIn: '15m',
   });
 
-  const refreshToken = jwt.sign({ userId, tenantId, type: 'refresh' }, JWT_REFRESH_SECRET, {
+  const refreshToken = jwt.sign({ userId, tenantId, type: 'refresh' }, getJwtRefreshSecret(), {
     expiresIn: '7d',
   });
 

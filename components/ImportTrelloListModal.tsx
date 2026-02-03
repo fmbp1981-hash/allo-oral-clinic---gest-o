@@ -11,6 +11,11 @@ import {
 } from 'lucide-react';
 import { TrelloCard } from '../services/trelloService';
 
+// Extended TrelloCard with selection state for this component
+interface TrelloCardWithSelection extends TrelloCard {
+    selected: boolean;
+}
+
 interface ImportTrelloListModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -28,7 +33,7 @@ export const ImportTrelloListModal = ({
 }: ImportTrelloListModalProps) => {
     const [importing, setImporting] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [localCards, setLocalCards] = useState<TrelloCard[]>([]);
+    const [localCards, setLocalCards] = useState<TrelloCardWithSelection[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
 
     // Initialize/Reset local state when modal opens or cards prop changes

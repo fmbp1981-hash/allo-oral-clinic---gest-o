@@ -11,19 +11,20 @@ interface RouteParams {
 export async function POST(request: NextRequest, { params }: RouteParams) {
     try {
         const { userId } = await params;
-        const payload = await validateAuthHeader(request);
+        const auth = validateAuthHeader(request);
 
-        if (!payload) {
-            return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+        if (isAuthError(auth)) {
+            return NextResponse.json({ error: auth.error }, { status: auth.status });
         }
 
+        const { userId: requestingUserId } = auth.data;
         const supabase = getSupabaseClient();
 
         // Check if requesting user is admin
         const { data: adminUser, error: adminError } = await supabase
             .from('users')
             .select('role')
-            .eq('id', payload.userId)
+            .eq('id', requestingUserId)
             .single();
 
         if (adminError || !adminUser || adminUser.role !== 'admin') {
@@ -63,9 +64,6 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             user: data,
         });
     } catch (error: unknown) {
-        if (isAuthError(error)) {
-            return NextResponse.json({ error: error.message }, { status: 401 });
-        }
         console.error('Approve user error:', error);
         return NextResponse.json(
             { error: 'Erro ao processar aprovação' },
