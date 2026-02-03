@@ -51,6 +51,7 @@ export async function POST(request: Request) {
         }
 
         // Transform camelCase to snake_case for Supabase
+        // Note: clinical_records is a separate table, not a column
         const dbPayload = {
             patient_id: body.patientId,
             name: body.name,
@@ -58,8 +59,7 @@ export async function POST(request: Request) {
             status: body.status,
             keyword_found: body.keywordFound,
             notes: body.notes,
-            scheduled_date: body.scheduledDate,
-            clinical_records: body.clinicalRecords
+            scheduled_date: body.scheduledDate
         };
 
         const { data, error } = await supabase
@@ -76,7 +76,6 @@ export async function POST(request: Request) {
         // Format response back to camelCase
         const formatted = {
             ...data,
-            clinicalRecords: data.clinical_records,
             patientId: data.patient_id,
             createdAt: data.created_at,
             keywordFound: data.keyword_found,
