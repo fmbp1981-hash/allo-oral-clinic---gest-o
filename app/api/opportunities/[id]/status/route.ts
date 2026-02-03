@@ -3,19 +3,21 @@ import { NextResponse } from 'next/server';
 
 export async function PATCH(
     request: Request,
-    { params }: { params: { id: string } }
+    context: { params: Promise<{ id: string }> }
 ) {
     try {
-        const { id } = params;
+        const { id } = await context.params;
         const body = await request.json();
         const { status, scheduledDate } = body;
 
-        const updateData: any = {
+        console.log(`Updating opportunity ${id} to status: ${status}`);
+
+        const updateData: Record<string, unknown> = {
             status,
             last_contact: new Date().toISOString()
         };
 
-        // Only update scheduled_date if provided (or strictly null if intending to clear, but usually we just update if present)
+        // Only update scheduled_date if provided
         if (scheduledDate !== undefined) {
             updateData.scheduled_date = scheduledDate;
         }
@@ -30,6 +32,7 @@ export async function PATCH(
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
+        console.log(`Successfully updated opportunity ${id}`);
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error('Internal error updating status:', error);

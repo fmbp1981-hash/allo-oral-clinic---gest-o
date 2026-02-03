@@ -344,9 +344,8 @@ export default function TrelloDashboard() {
             name: patient.name,
             phone: patient.phone,
             status: OpportunityStatus.NEW,
-            keywordFound: 'Import Trello', // Could be formatted better
-            notes: `Importado do Trello em ${new Date().toLocaleDateString()}\nCard: ${card.name}\n${card.desc || ''}`,
-            clinicalRecords: []
+            keywordFound: 'Import Trello',
+            notes: `Importado do Trello em ${new Date().toLocaleDateString()}\nCard: ${card.name}\n${card.desc || ''}`
           });
 
           // Mark as imported locally
