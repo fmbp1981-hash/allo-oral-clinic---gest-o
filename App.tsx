@@ -58,7 +58,8 @@ import {
   updateOpportunityNotes,
   getStoredUser,
   logoutUser,
-  deleteAllOpportunities
+  deleteAllOpportunities,
+  createOpportunity
 } from './services/apiService';
 
 // --- Page Components ---
@@ -432,6 +433,7 @@ const DatabasePage = ({
   loading,
   opportunities,
   onAddToPipeline,
+  onBulkAddToPipeline,
   onRefresh,
   user
 }: {
@@ -439,12 +441,14 @@ const DatabasePage = ({
   loading: boolean,
   opportunities: Opportunity[],
   onAddToPipeline: (patient: Patient) => void,
+  onBulkAddToPipeline: (patients: Patient[]) => void,
   onRefresh: () => void,
   user: User | null
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterTag, setFilterTag] = useState('all');
   const [showImportModal, setShowImportModal] = useState(false);
+  const [selectedPatientIds, setSelectedPatientIds] = useState<Set<string>>(new Set());
 
   // Debounce search term to optimize performance
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
@@ -466,6 +470,41 @@ const DatabasePage = ({
     return opp ? opp.status : null;
   };
 
+  // Pacientes disponíveis para reativação (não estão no pipeline)
+  const availablePatients = filteredPatients.filter(p => !getPipelineStatus(p.id));
+
+  // Funções de seleção
+  const togglePatientSelection = (patientId: string) => {
+    setSelectedPatientIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(patientId)) {
+        newSet.delete(patientId);
+      } else {
+        newSet.add(patientId);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedPatientIds.size === availablePatients.length) {
+      setSelectedPatientIds(new Set());
+    } else {
+      setSelectedPatientIds(new Set(availablePatients.map(p => p.id)));
+    }
+  };
+
+  const handleBulkReactivate = () => {
+    const selectedPatients = patients.filter(p => selectedPatientIds.has(p.id));
+    if (selectedPatients.length > 0) {
+      onBulkAddToPipeline(selectedPatients);
+      setSelectedPatientIds(new Set());
+    }
+  };
+
+  const selectedCount = selectedPatientIds.size;
+  const allAvailableSelected = availablePatients.length > 0 && selectedPatientIds.size === availablePatients.length;
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
@@ -479,6 +518,16 @@ const DatabasePage = ({
               <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
               Supabase Conectado
             </div>
+          )}
+          {selectedCount > 0 && (
+            <button
+              onClick={handleBulkReactivate}
+              className="px-3 py-2 text-sm font-medium text-white bg-green-600 border border-green-600 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+              title="Reativar pacientes selecionados"
+            >
+              <PlusCircle size={16} />
+              Reativar {selectedCount} Selecionado{selectedCount > 1 ? 's' : ''}
+            </button>
           )}
           <button
             onClick={() => setShowImportModal(true)}
@@ -560,6 +609,16 @@ const DatabasePage = ({
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50 dark:bg-gray-900">
                 <tr>
+                  <th className="px-4 py-3 text-left">
+                    <input
+                      type="checkbox"
+                      checked={allAvailableSelected}
+                      onChange={toggleSelectAll}
+                      disabled={availablePatients.length === 0}
+                      className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 disabled:opacity-50"
+                      title={availablePatients.length === 0 ? 'Nenhum paciente disponível' : 'Selecionar todos disponíveis'}
+                    />
+                  </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nome</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Telefone</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Histórico / Tratamentos</th>
@@ -571,9 +630,21 @@ const DatabasePage = ({
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                 {filteredPatients.length > 0 ? filteredPatients.map((p) => {
                   const pipelineStatus = getPipelineStatus(p.id);
+                  const isAvailable = !pipelineStatus;
+                  const isSelected = selectedPatientIds.has(p.id);
 
                   return (
-                    <tr key={p.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    <tr key={p.id} className={`hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${isSelected ? 'bg-indigo-50 dark:bg-indigo-900/20' : ''}`}>
+                      <td className="px-4 py-4">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => togglePatientSelection(p.id)}
+                          disabled={!isAvailable}
+                          className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 disabled:opacity-30 disabled:cursor-not-allowed"
+                          title={isAvailable ? 'Selecionar para reativação' : 'Já está no pipeline'}
+                        />
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{p.name}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{p.phone}</td>
                       <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
@@ -620,7 +691,7 @@ const DatabasePage = ({
                   );
                 }) : (
                   <tr>
-                    <td colSpan={6} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                    <td colSpan={7} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
                       Nenhum paciente encontrado com os filtros atuais.
                     </td>
                   </tr>
@@ -752,6 +823,8 @@ const AppContent = ({ user, setUser }: { user: User | null; setUser: (user: User
 
   const executeStatusUpdate = async (id: string, status: OpportunityStatus, scheduledDate?: string) => {
     const original = [...opportunities];
+
+    // Optimistic update
     setOpportunities(prev => prev.map(o => {
       if (o.id === id) {
         return {
@@ -763,10 +836,21 @@ const AppContent = ({ user, setUser }: { user: User | null; setUser: (user: User
       }
       return o;
     }));
+
     try {
       await updateOpportunityStatus(id, status, scheduledDate);
-    } catch {
+
+      // Also update local storage to ensure persistence
+      const updatedOpportunities = original.map(o =>
+        o.id === id
+          ? { ...o, status, lastContact: new Date().toISOString(), ...(scheduledDate ? { scheduledDate } : {}) }
+          : o
+      );
+      localStorage.setItem('clinicaflow_opportunities', JSON.stringify(updatedOpportunities));
+    } catch (error) {
+      console.error('Failed to update status:', error);
       setOpportunities(original);
+      toast.error('Erro ao atualizar status. Verifique sua conexão.');
     }
   };
 
@@ -792,7 +876,7 @@ const AppContent = ({ user, setUser }: { user: User | null; setUser: (user: User
   };
 
   // Funcionalidade para adicionar paciente da base diretamente ao Pipeline (Teste e Manual)
-  const handleAddFromDatabase = (patient: Patient) => {
+  const handleAddFromDatabase = async (patient: Patient) => {
     // Verifica se já existe
     const exists = opportunities.some(o => o.patientId === patient.id);
     if (exists) {
@@ -800,20 +884,58 @@ const AppContent = ({ user, setUser }: { user: User | null; setUser: (user: User
       return;
     }
 
-    const newOpp: Opportunity = {
-      id: `opp_${Date.now()}_${patient.id}`,
-      patientId: patient.id,
-      name: patient.name,
-      phone: patient.phone,
-      keywordFound: 'Manual (Base de Dados)',
-      status: OpportunityStatus.NEW,
-      createdAt: new Date().toISOString(),
-      clinicalRecords: patient.clinicalRecords
-    };
+    try {
+      // Create opportunity in the database first
+      const newOpp = await createOpportunity({
+        patientId: patient.id,
+        name: patient.name,
+        phone: patient.phone,
+        keywordFound: 'Manual (Base de Dados)',
+        status: OpportunityStatus.NEW,
+        clinicalRecords: patient.clinicalRecords
+      });
 
-    const merged = mergeNewOpportunities(opportunities, [newOpp]);
-    setOpportunities(merged);
-    toast.success(`Paciente ${patient.name} adicionado ao Pipeline!`);
+      const merged = mergeNewOpportunities(opportunities, [newOpp]);
+      setOpportunities(merged);
+      toast.success(`Paciente ${patient.name} adicionado ao Pipeline!`);
+    } catch (error) {
+      console.error('Error adding to pipeline:', error);
+      toast.error('Erro ao adicionar paciente ao Pipeline. Tente novamente.');
+    }
+  };
+
+  const handleBulkAddFromDatabase = async (patients: Patient[]) => {
+    const patientsToAdd = patients.filter(
+      patient => !opportunities.some(opp => opp.patientId === patient.id)
+    );
+
+    if (patientsToAdd.length === 0) {
+      toast.info('Todos os pacientes selecionados já estão no Pipeline.');
+      return;
+    }
+
+    try {
+      // Create opportunities in the database
+      const createdOpportunities: Opportunity[] = [];
+      for (const patient of patientsToAdd) {
+        const newOpp = await createOpportunity({
+          patientId: patient.id,
+          name: patient.name,
+          phone: patient.phone,
+          keywordFound: 'Manual (Base de Dados)',
+          status: OpportunityStatus.NEW,
+          clinicalRecords: patient.clinicalRecords
+        });
+        createdOpportunities.push(newOpp);
+      }
+
+      const merged = mergeNewOpportunities(opportunities, createdOpportunities);
+      setOpportunities(merged);
+      toast.success(`${createdOpportunities.length} paciente(s) adicionado(s) ao Pipeline!`);
+    } catch (error) {
+      console.error('Error bulk adding to pipeline:', error);
+      toast.error('Erro ao adicionar pacientes ao Pipeline. Alguns podem não ter sido adicionados.');
+    }
   };
 
   const handleBulkMessage = (recipients: Opportunity[]) => {
@@ -1008,6 +1130,7 @@ const AppContent = ({ user, setUser }: { user: User | null; setUser: (user: User
                 patients={databasePatients}
                 loading={databaseLoading}
                 onAddToPipeline={handleAddFromDatabase}
+                onBulkAddToPipeline={handleBulkAddFromDatabase}
                 opportunities={opportunities}
                 onRefresh={handleRefreshPatients}
                 user={user}
