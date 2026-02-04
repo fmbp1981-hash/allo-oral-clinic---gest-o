@@ -1,19 +1,22 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '../lib/supabase';
+import { validateAuthHeader, isAuthError } from '../lib/auth';
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
     try {
-        const { searchParams } = new URL(request.url);
-        const userId = searchParams.get('userId');
+        // Validate authentication
+        const auth = validateAuthHeader(request);
+        if (isAuthError(auth)) {
+            return NextResponse.json({ error: auth.error }, { status: auth.status });
+        }
 
-        let query = supabase
+        const { userId } = auth.data;
+
+        // Filter by user_id for multi-tenancy
+        const { data, error } = await supabase
             .from('opportunities')
-            .select('*, clinical_records(*)');
-
-        // Se tiver userId (e logicamente implementarmos tenant isolation), filtramos aqui
-        // Por enquanto, traz tudo
-
-        const { data, error } = await query;
+            .select('*, clinical_records(*)')
+            .eq('user_id', userId);
 
         if (error) {
             console.error('Error fetching opportunities:', error);
@@ -41,8 +44,15 @@ export async function GET(request: Request) {
 }
 
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
     try {
+        // Validate authentication
+        const auth = validateAuthHeader(request);
+        if (isAuthError(auth)) {
+            return NextResponse.json({ error: auth.error }, { status: auth.status });
+        }
+
+        const { userId } = auth.data;
         const body = await request.json();
 
         // Validate required fields
@@ -59,7 +69,8 @@ export async function POST(request: Request) {
             status: body.status,
             keyword_found: body.keywordFound,
             notes: body.notes,
-            scheduled_date: body.scheduledDate
+            scheduled_date: body.scheduledDate,
+            user_id: userId  // Required for multi-tenancy
         };
 
         const { data, error } = await supabase
@@ -90,15 +101,21 @@ export async function POST(request: Request) {
     }
 }
 
-export async function DELETE(request: Request) {
+export async function DELETE(request: NextRequest) {
     try {
-        // Atenção: Isso apaga TODAS as oportunidades.
-        // Deve ser restrito a admin ou tenant owner.
+        // Validate authentication
+        const auth = validateAuthHeader(request);
+        if (isAuthError(auth)) {
+            return NextResponse.json({ error: auth.error }, { status: auth.status });
+        }
 
+        const { userId } = auth.data;
+
+        // Delete only opportunities belonging to this user
         const { error } = await supabase
             .from('opportunities')
             .delete()
-            .neq('id', '00000000-0000-0000-0000-000000000000'); // Hack simples para deletar tudo (id != uuid-zero)
+            .eq('user_id', userId);
 
         if (error) {
             console.error('Error deleting opportunities:', error);
