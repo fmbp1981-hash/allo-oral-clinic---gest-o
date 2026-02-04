@@ -20,7 +20,8 @@ import {
   ArrowRight,
   Eye,
   Upload,
-  Send
+  Send,
+  Trash2
 } from 'lucide-react';
 import { useToast } from './hooks/useToast';
 import { useConfirm } from './hooks/useConfirm';
@@ -59,7 +60,8 @@ import {
   getStoredUser,
   logoutUser,
   deleteAllOpportunities,
-  createOpportunity
+  createOpportunity,
+  deleteAllPatients
 } from './services/apiService';
 
 // --- Page Components ---
@@ -435,6 +437,7 @@ const DatabasePage = ({
   onAddToPipeline,
   onBulkAddToPipeline,
   onRefresh,
+  onDeleteAll,
   user
 }: {
   patients: Patient[],
@@ -443,6 +446,7 @@ const DatabasePage = ({
   onAddToPipeline: (patient: Patient) => void,
   onBulkAddToPipeline: (patients: Patient[]) => void,
   onRefresh: () => void,
+  onDeleteAll: () => void,
   user: User | null
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -553,6 +557,17 @@ const DatabasePage = ({
             pdfTitle="Base Completa de Pacientes - Allo Oral Clinic"
             disabled={loading || filteredPatients.length === 0}
           />
+          {isAdmin(user) && patients.length > 0 && (
+            <button
+              onClick={onDeleteAll}
+              disabled={loading}
+              className="px-3 py-2 text-sm font-medium text-white bg-red-600 border border-red-600 rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Apagar toda a base de pacientes"
+            >
+              <Trash2 size={16} />
+              Apagar Base
+            </button>
+          )}
         </div>
       </div>
 
@@ -776,6 +791,30 @@ const AppContent = ({ user, setUser }: { user: User | null; setUser: (user: User
       toast.error('Erro ao atualizar base de pacientes');
     } finally {
       setDatabaseLoading(false);
+    }
+  };
+
+  const handleDeleteAllPatients = async () => {
+    const confirmed = await confirm({
+      title: 'Apagar Base de Pacientes',
+      message: `Tem certeza que deseja apagar TODOS os ${databasePatients.length} pacientes? Esta ação não pode ser desfeita.`,
+      confirmText: 'Sim, Apagar Tudo',
+      cancelText: 'Cancelar',
+      variant: 'danger'
+    });
+
+    if (confirmed) {
+      setDatabaseLoading(true);
+      try {
+        await deleteAllPatients();
+        setDatabasePatients([]);
+        toast.success('Base de pacientes apagada com sucesso!');
+      } catch (error) {
+        console.error('Error deleting patients:', error);
+        toast.error('Erro ao apagar base de pacientes');
+      } finally {
+        setDatabaseLoading(false);
+      }
     }
   };
 
@@ -1133,6 +1172,7 @@ const AppContent = ({ user, setUser }: { user: User | null; setUser: (user: User
                 onBulkAddToPipeline={handleBulkAddFromDatabase}
                 opportunities={opportunities}
                 onRefresh={handleRefreshPatients}
+                onDeleteAll={handleDeleteAllPatients}
                 user={user}
               />
             </div>

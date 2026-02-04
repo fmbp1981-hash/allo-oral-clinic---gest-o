@@ -235,6 +235,17 @@ export const getAllPatients = async (): Promise<Patient[]> => {
   }
 };
 
+export const deleteAllPatients = async (): Promise<void> => {
+  try {
+    await fetchWithAuth('/patients', {
+      method: 'DELETE',
+    });
+  } catch (error) {
+    console.error('Delete all patients error:', error);
+    throw error;
+  }
+};
+
 export const getPatientById = async (id: string): Promise<Patient> => {
   try {
     return await fetchWithAuth(`/patients/${id}`);

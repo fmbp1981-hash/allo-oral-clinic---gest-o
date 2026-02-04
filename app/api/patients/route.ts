@@ -89,3 +89,34 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+// DELETE /api/patients - Apaga todos os pacientes do usuário
+export async function DELETE(request: NextRequest) {
+  try {
+    const auth = validateAuthHeader(request);
+    if (isAuthError(auth)) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
+    const { userId } = auth.data;
+
+    // Delete all patients belonging to this user
+    const { error } = await supabase
+      .from('patients')
+      .delete()
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('Error deleting patients:', error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ message: 'Base de pacientes apagada com sucesso' });
+  } catch (error) {
+    console.error('Delete patients error:', error);
+    return NextResponse.json(
+      { error: 'Erro ao apagar base de pacientes' },
+      { status: 500 }
+    );
+  }
+}
