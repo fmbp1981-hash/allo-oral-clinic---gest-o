@@ -180,12 +180,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     setSaveError(null);
 
     try {
+      // Save global app settings
       saveSettings({
         messageTemplate: template,
         defaultRole: defaultRole
       });
 
-      // Save WhatsApp config
+      // Save WhatsApp config to localStorage (for frontend service)
       const whatsappConfig: WhatsAppConfig = {
         provider: whatsappProvider,
         evolutionApiUrl: evolutionUrl,
@@ -198,6 +199,33 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
         zApiToken: zApiToken
       };
       saveWhatsAppConfig(whatsappConfig);
+
+      // Also save WhatsApp config to database (for API bulk send)
+      const token = localStorage.getItem('auth_token');
+      const userSettingsResponse = await fetch('/api/user-settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          provider: whatsappProvider,
+          evolutionApiUrl: evolutionUrl,
+          evolutionInstanceName: evolutionInstance,
+          evolutionApiKey: evolutionApiKey,
+          zapiUrl: zApiUrl,
+          zapiInstanceId: zApiInstance,
+          zapiToken: zApiToken,
+          businessPhoneNumberId: businessPhoneId,
+          businessAccessToken: businessToken
+        })
+      });
+
+      if (!userSettingsResponse.ok) {
+        const errorData = await userSettingsResponse.json();
+        console.warn('Failed to save WhatsApp settings to database:', errorData);
+        // Continue anyway - localStorage will work for individual sends
+      }
 
       // Save Trello config if configured
       if (trelloApiKey && trelloToken) {
