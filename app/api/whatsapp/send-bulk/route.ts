@@ -171,7 +171,6 @@ function isConfigValid(config: WhatsAppConfig): boolean {
     case 'zapi':
       return !!(config.zapiUrl && config.zapiInstanceId && config.zapiToken);
     case 'business_cloud':
-    case 'business-cloud':
       return !!(config.businessPhoneNumberId && config.businessAccessToken);
     default:
       return false;
@@ -276,7 +275,6 @@ async function sendMessage(
       case 'zapi':
         return await sendViaZapi(config, phone, message);
       case 'business_cloud':
-      case 'business-cloud':
         return await sendViaBusinessCloud(config, phone, message);
       default:
         return { success: false, error: 'Provedor não suportado' };

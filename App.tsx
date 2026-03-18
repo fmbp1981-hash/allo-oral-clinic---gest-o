@@ -340,8 +340,7 @@ const DatabasePage = ({
     const matchesSearch = !debouncedSearchTerm ||
       p.name.toLowerCase().includes(searchLower) ||
       p.phone.includes(debouncedSearchTerm) ||
-      (Array.isArray(p.history) && p.history.some(tag => tag.toLowerCase().includes(searchLower))) ||
-      (typeof p.history === 'string' && p.history.toLowerCase().includes(searchLower));
+      (Array.isArray(p.history) && p.history.some(tag => tag.toLowerCase().includes(searchLower)));
     const matchesTag = filterTag === 'all' || (Array.isArray(p.history) && p.history.includes(filterTag));
     const pipelineStatus = getPipelineStatus(p.id);
     const matchesStatus = filterStatus === 'all' ||
@@ -728,7 +727,7 @@ const AppContent = ({ user, setUser }: { user: User | null; setUser: (user: User
       message: `Tem certeza que deseja apagar TODOS os ${databasePatients.length} pacientes? Esta ação não pode ser desfeita.`,
       confirmText: 'Sim, Apagar Tudo',
       cancelText: 'Cancelar',
-      variant: 'danger'
+      type: 'danger'
     });
 
     if (confirmed) {

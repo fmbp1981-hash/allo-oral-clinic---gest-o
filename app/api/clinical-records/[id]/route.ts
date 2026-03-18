@@ -91,8 +91,11 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Verificar ownership
-    if (existingRecord.patient?.user_id !== userId) {
+    // Verificar ownership (patient pode vir como array ou objeto dependendo do Supabase client)
+    const patientData = Array.isArray(existingRecord.patient)
+      ? existingRecord.patient[0]
+      : existingRecord.patient;
+    if (patientData?.user_id !== userId) {
       return NextResponse.json(
         { error: 'Acesso negado' },
         { status: 403 }
@@ -171,8 +174,11 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Verificar ownership
-    if (existingRecord.patient?.user_id !== userId) {
+    // Verificar ownership (patient pode vir como array ou objeto dependendo do Supabase client)
+    const patientRecord = Array.isArray(existingRecord.patient)
+      ? existingRecord.patient[0]
+      : existingRecord.patient;
+    if (patientRecord?.user_id !== userId) {
       return NextResponse.json(
         { error: 'Acesso negado' },
         { status: 403 }
