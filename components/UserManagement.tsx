@@ -28,7 +28,6 @@ interface UserListItem {
   approved: boolean;
   createdAt: string;
   integrations: {
-    trello: boolean;
     whatsapp: boolean;
   };
 }
@@ -80,18 +79,9 @@ const StatusBadge = ({ status }: { status: 'configured' | 'pending' }) => {
   );
 };
 
-const IntegrationIndicators = ({ integrations }: { integrations: { trello: boolean; whatsapp: boolean } }) => {
+const IntegrationIndicators = ({ integrations }: { integrations: { whatsapp: boolean } }) => {
   return (
     <div className="flex gap-1">
-      <span
-        className={`px-2 py-0.5 rounded text-xs border ${integrations.trello
-          ? 'bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800'
-          : 'bg-gray-50 text-gray-400 border-gray-200 dark:bg-gray-700 dark:text-gray-500 dark:border-gray-600'
-          }`}
-        title={integrations.trello ? 'Trello configurado' : 'Trello não configurado'}
-      >
-        Trello
-      </span>
       <span
         className={`px-2 py-0.5 rounded text-xs border ${integrations.whatsapp
           ? 'bg-green-50 text-green-600 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800'

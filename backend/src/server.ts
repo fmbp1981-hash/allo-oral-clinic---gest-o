@@ -15,7 +15,6 @@ import userRoutes from './routes/user.routes';
 import clinicalRecordRoutes from './routes/clinical-record.routes';
 import notificationRoutes from './routes/notification.routes';
 import whatsappRoutes from './routes/whatsapp.routes.simple'; // TEMP: usando versão simplificada
-import trelloRoutes from './routes/trello.routes';
 import { generalLimiter } from './middlewares/rateLimiter.middleware';
 import logger, { morganStream } from './lib/logger';
 import notificationService from './services/notification.service';
@@ -120,7 +119,6 @@ app.use('/api/users', userRoutes);
 app.use('/api/clinical-records', clinicalRecordRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/whatsapp', whatsappRoutes);
-app.use('/api/trello', trelloRoutes);
 
 // 404 Handler
 app.use((req, res) => {

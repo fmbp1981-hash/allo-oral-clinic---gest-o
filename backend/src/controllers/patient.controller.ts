@@ -216,11 +216,26 @@ export const searchPatients = async (req: AuthRequest, res: Response) => {
     }
 };
 
+// Helper to extract a field from a row using multiple possible column names
+const extractField = (row: Record<string, any>, ...keys: string[]): string => {
+    for (const key of keys) {
+        if (row[key] !== undefined && row[key] !== null && String(row[key]).trim() !== '') {
+            return String(row[key]).trim();
+        }
+    }
+    return '';
+};
+
+// Normalize phone number: keep only digits
+const normalizePhone = (phone: string): string => {
+    return phone.replace(/\D/g, '');
+};
+
 export const importPatients = async (req: AuthRequest, res: Response) => {
     try {
         const userId = req.user?.userId;
         const tenantId = req.user?.tenantId;
-        
+
         if (!userId || !tenantId) {
             return res.status(401).json({ error: 'Unauthorized' });
         }
@@ -233,25 +248,54 @@ export const importPatients = async (req: AuthRequest, res: Response) => {
 
         logger.info('Importing patients', { count: patients.length, userId });
 
-        const validPatients = patients.map((p: any) => ({
-            name: p.name || p.Nome || p.NOME || '',
-            phone: p.phone || p.Telefone || p.TELEFONE || p.Celular || p.CELULAR || '',
-            email: p.email || p.Email || p.EMAIL || p['E-mail'] || '',
-            history: p.history || p.Historico || p.HISTORICO || p.Observacoes || p.OBSERVACOES || '',
-            user_id: userId,
-            tenant_id: tenantId,
-        })).filter((p: any) => p.name && p.phone);
+        // Flexible column mapping with many Portuguese/English variations
+        const validPatients = patients.map((p: any) => {
+            const name = extractField(p, 'name', 'Name', 'Nome', 'NOME', 'nome', 'Paciente', 'PACIENTE', 'paciente');
+            const rawPhone = extractField(p, 'phone', 'Phone', 'Telefone', 'TELEFONE', 'telefone', 'Celular', 'CELULAR', 'celular', 'Tel', 'tel', 'Fone', 'fone', 'WhatsApp', 'whatsapp');
+            const phone = normalizePhone(rawPhone);
+            const email = extractField(p, 'email', 'Email', 'EMAIL', 'e-mail', 'E-mail', 'E-Mail');
+            const history = extractField(p, 'history', 'History', 'Historico', 'HISTORICO', 'historico', 'Histórico', 'histórico', 'Observacoes', 'OBSERVACOES', 'observacoes', 'Observações', 'observações', 'Tratamento', 'tratamento', 'TRATAMENTO', 'Procedimento', 'procedimento');
+            const lastVisit = extractField(p, 'lastVisit', 'last_visit', 'Ultima Visita', 'ultima_visita', 'ULTIMA_VISITA', 'Última Visita', 'Data', 'data');
+
+            return {
+                name,
+                phone,
+                email: email || null,
+                history: history || null,
+                last_visit: lastVisit || null,
+                user_id: userId,
+                tenant_id: tenantId,
+            };
+        }).filter((p: any) => p.name && p.phone);
 
         if (validPatients.length === 0) {
-            return res.status(400).json({ error: 'No valid patients found in file' });
+            return res.status(400).json({
+                success: false,
+                error: 'Nenhum paciente válido encontrado. Verifique se o arquivo possui colunas "Nome" e "Telefone".',
+                total: patients.length,
+                valid: 0,
+                imported: 0,
+            });
         }
+
+        // Fetch existing phones for this tenant to detect duplicates
+        const { data: existingPatients } = await supabase
+            .from('patients')
+            .select('phone')
+            .eq('tenant_id', tenantId);
+
+        const existingPhones = new Set((existingPatients || []).map((p: { phone: string }) => normalizePhone(p.phone)));
+
+        // Separate new patients from duplicates
+        const newPatients = validPatients.filter((p: any) => !existingPhones.has(p.phone));
+        const duplicateCount = validPatients.length - newPatients.length;
 
         const batchSize = 100;
         let imported = 0;
         const errors: string[] = [];
 
-        for (let i = 0; i < validPatients.length; i += batchSize) {
-            const batch = validPatients.slice(i, i + batchSize);
+        for (let i = 0; i < newPatients.length; i += batchSize) {
+            const batch = newPatients.slice(i, i + batchSize);
 
             const { data, error } = await supabase
                 .from('patients')
@@ -260,7 +304,7 @@ export const importPatients = async (req: AuthRequest, res: Response) => {
 
             if (error) {
                 logger.error('Batch import error:', error);
-                errors.push(`Batch ${i / batchSize + 1}: ${error.message}`);
+                errors.push(`Lote ${i / batchSize + 1}: ${error.message}`);
             } else {
                 imported += data?.length || 0;
             }
@@ -270,16 +314,18 @@ export const importPatients = async (req: AuthRequest, res: Response) => {
             total: patients.length,
             valid: validPatients.length,
             imported,
+            duplicates: duplicateCount,
             errors: errors.length
         });
 
         res.json({
             success: true,
-            message: `Successfully imported ${imported} patients`,
+            message: `${imported} paciente(s) importado(s) com sucesso`,
             total: patients.length,
             valid: validPatients.length,
             imported,
-            skipped: validPatients.length - imported,
+            skipped: duplicateCount + (newPatients.length - imported),
+            duplicates: duplicateCount,
             errors: errors.length > 0 ? errors : undefined
         });
     } catch (error: any) {

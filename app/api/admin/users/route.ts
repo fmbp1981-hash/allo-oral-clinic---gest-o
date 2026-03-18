@@ -22,7 +22,6 @@ interface UserListItem {
   approved: boolean;
   createdAt: string;
   integrations: {
-    trello: boolean;
     whatsapp: boolean;
   };
 }
@@ -76,11 +75,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Buscar configurações de Trello para todos os usuários
-    const { data: trelloConfigs } = await supabase
-      .from('trello_config')
-      .select('user_id, board_id');
-
     // Buscar configurações de WhatsApp para todos os usuários
     const { data: whatsappConfigs } = await supabase
       .from('user_settings')
@@ -88,15 +82,10 @@ export async function GET(request: NextRequest) {
 
     // Mapear para o formato esperado
     const userList: UserListItem[] = (users || []).map((u: UserRecord) => {
-      const hasTrello = trelloConfigs?.some(
-        (tc: { user_id: string; board_id?: string }) => tc.user_id === u.id && tc.board_id
-      );
       const hasWhatsapp = whatsappConfigs?.some(
         (wc: { user_id: string; evolution_api_url?: string; evolution_api_key?: string }) =>
           wc.user_id === u.id && wc.evolution_api_url && wc.evolution_api_key
       );
-
-      const isConfigured = hasTrello || hasWhatsapp;
 
       return {
         id: u.id,
@@ -104,11 +93,10 @@ export async function GET(request: NextRequest) {
         name: u.name,
         companyName: u.clinic_name || 'Sem empresa',
         role: (u.role as 'admin' | 'operador' | 'visualizador') || 'visualizador',
-        status: isConfigured ? 'configured' : 'pending',
+        status: hasWhatsapp ? 'configured' : 'pending',
         approved: u.approved ?? (u.role === 'admin'),
         createdAt: u.created_at || new Date().toISOString(),
         integrations: {
-          trello: !!hasTrello,
           whatsapp: !!hasWhatsapp,
         },
       };

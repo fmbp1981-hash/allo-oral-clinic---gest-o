@@ -27,20 +27,11 @@ interface UserListItem {
   status: 'configured' | 'pending';
   createdAt: string;
   integrations: {
-    trello: boolean;
     whatsapp: boolean;
   };
 }
 
 interface UserConfig {
-  trello: {
-    configured: boolean;
-    apiKey?: string;
-    token?: string;
-    boardId?: string;
-    boardName?: string;
-    syncEnabled?: boolean;
-  };
   whatsapp: {
     configured: boolean;
     provider?: 'evolution' | 'zapi' | 'business_cloud';
@@ -74,7 +65,7 @@ interface UserConfigModalProps {
   onSaved: () => void;
 }
 
-type SectionType = 'user' | 'permissions' | 'trello' | 'whatsapp' | 'templates';
+type SectionType = 'user' | 'permissions' | 'whatsapp' | 'templates';
 
 const SectionHeader = ({
   title,
@@ -167,7 +158,6 @@ export const UserConfigModal = ({ isOpen, onClose, user, onSaved }: UserConfigMo
   const [openSections, setOpenSections] = useState<Record<SectionType, boolean>>({
     user: true,
     permissions: true,
-    trello: false,
     whatsapp: false,
     templates: false,
   });
@@ -233,7 +223,6 @@ export const UserConfigModal = ({ isOpen, onClose, user, onSaved }: UserConfigMo
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
-            trello: config.trello,
             whatsapp: config.whatsapp,
             templates: {
               ...config.templates,
@@ -253,17 +242,6 @@ export const UserConfigModal = ({ isOpen, onClose, user, onSaved }: UserConfigMo
 
   const toggleSection = (section: SectionType) => {
     setOpenSections((prev) => ({ ...prev, [section]: !prev[section] }));
-  };
-
-  const updateTrelloConfig = (key: keyof UserConfig['trello'], value: unknown) => {
-    setConfig((prev) =>
-      prev
-        ? {
-            ...prev,
-            trello: { ...prev.trello, [key]: value },
-          }
-        : null
-    );
   };
 
   const updateWhatsappConfig = (key: keyof UserConfig['whatsapp'], value: unknown) => {
@@ -452,76 +430,6 @@ export const UserConfigModal = ({ isOpen, onClose, user, onSaved }: UserConfigMo
                             </p>
                           </button>
                         ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Trello Section */}
-                <div className="space-y-3">
-                  <SectionHeader
-                    title="Integração Trello"
-                    icon={Settings}
-                    isOpen={openSections.trello}
-                    onToggle={() => toggleSection('trello')}
-                    status={config?.trello.configured ? 'configured' : 'pending'}
-                  />
-                  {openSections.trello && config && (
-                    <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <PasswordInput
-                          label="API Key"
-                          value={config.trello.apiKey || ''}
-                          onChange={(v) => updateTrelloConfig('apiKey', v)}
-                          placeholder="Trello API Key"
-                        />
-                        <PasswordInput
-                          label="Token"
-                          value={config.trello.token || ''}
-                          onChange={(v) => updateTrelloConfig('token', v)}
-                          placeholder="Trello Token"
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Board ID
-                          </label>
-                          <input
-                            type="text"
-                            value={config.trello.boardId || ''}
-                            onChange={(e) => updateTrelloConfig('boardId', e.target.value)}
-                            placeholder="ID do Board"
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-indigo-500 focus:border-indigo-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Nome do Board
-                          </label>
-                          <input
-                            type="text"
-                            value={config.trello.boardName || ''}
-                            onChange={(e) => updateTrelloConfig('boardName', e.target.value)}
-                            placeholder="Nome do Board"
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-indigo-500 focus:border-indigo-500"
-                          />
-                        </div>
-                      </div>
-                      <div className="flex items-center">
-                        <input
-                          type="checkbox"
-                          id="trelloSync"
-                          checked={config.trello.syncEnabled || false}
-                          onChange={(e) => updateTrelloConfig('syncEnabled', e.target.checked)}
-                          className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                        />
-                        <label
-                          htmlFor="trelloSync"
-                          className="ml-2 text-sm text-gray-700 dark:text-gray-300"
-                        >
-                          Sincronização automática ativa
-                        </label>
                       </div>
                     </div>
                   )}

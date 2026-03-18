@@ -80,7 +80,7 @@ export const config = {
       );
     },
     get webhookUrl(): string {
-      return `${this.baseUrl}/api/trello/webhook`;
+      return `${this.baseUrl}/api/webhook`;
     },
   },
 

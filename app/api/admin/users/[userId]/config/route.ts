@@ -7,15 +7,6 @@ interface RouteParams {
 }
 
 interface UserConfig {
-  // Trello Config
-  trello: {
-    configured: boolean;
-    apiKey?: string;
-    token?: string;
-    boardId?: string;
-    boardName?: string;
-    syncEnabled?: boolean;
-  };
   // WhatsApp Config
   whatsapp: {
     configured: boolean;
@@ -80,13 +71,6 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Buscar configuração do Trello
-    const { data: trelloConfig } = await supabase
-      .from('trello_config')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
-
     // Buscar configuração do WhatsApp
     const { data: whatsappConfig } = await supabase
       .from('user_settings')
@@ -101,14 +85,6 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       .eq('user_id', userId);
 
     const config: UserConfig = {
-      trello: {
-        configured: !!trelloConfig?.board_id,
-        apiKey: trelloConfig?.api_key || '',
-        token: trelloConfig?.token || '',
-        boardId: trelloConfig?.board_id || '',
-        boardName: trelloConfig?.board_name || '',
-        syncEnabled: trelloConfig?.sync_enabled || false,
-      },
       whatsapp: {
         configured: !!(whatsappConfig?.evolution_api_url && whatsappConfig?.evolution_api_key),
         provider: whatsappConfig?.provider || 'evolution',
@@ -178,38 +154,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     }
 
     const body = await request.json();
-    const { trello, whatsapp, templates } = body;
-
-    // Atualizar configuração do Trello
-    if (trello) {
-      const trelloData = {
-        user_id: userId,
-        api_key: trello.apiKey || '',
-        token: trello.token || '',
-        board_id: trello.boardId || null,
-        board_name: trello.boardName || null,
-        sync_enabled: trello.syncEnabled || false,
-        updated_at: new Date().toISOString(),
-      };
-
-      // Check if config exists
-      const { data: existingTrello } = await supabase
-        .from('trello_config')
-        .select('id')
-        .eq('user_id', userId)
-        .single();
-
-      if (existingTrello) {
-        await supabase
-          .from('trello_config')
-          .update(trelloData)
-          .eq('user_id', userId);
-      } else {
-        await supabase
-          .from('trello_config')
-          .insert(trelloData);
-      }
-    }
+    const { whatsapp, templates } = body;
 
     // Atualizar configuração do WhatsApp e Templates
     if (whatsapp || templates) {

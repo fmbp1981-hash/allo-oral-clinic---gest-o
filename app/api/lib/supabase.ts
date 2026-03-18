@@ -23,31 +23,6 @@ export interface DbUser {
   updated_at?: string;
 }
 
-export interface DbTrelloConfig {
-  id: string;
-  user_id: string;
-  api_key: string;
-  token: string;
-  board_id?: string;
-  board_name?: string;
-  sync_enabled: boolean;
-  list_mapping?: Record<string, string>;
-  webhook_id?: string;
-  created_at?: string;
-  updated_at?: string;
-}
-
-export interface DbTrelloCardMapping {
-  id: string;
-  user_id: string;
-  opportunity_id: string;
-  trello_card_id: string;
-  trello_board_id: string;
-  trello_list_id?: string;
-  last_synced_at?: string;
-  sync_direction?: 'to_trello' | 'from_trello' | 'bidirectional';
-}
-
 // Singleton instance
 let _supabaseInstance: SupabaseClient | null = null;
 
