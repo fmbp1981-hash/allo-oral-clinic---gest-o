@@ -9,15 +9,13 @@ import {
   X,
   LogOut,
   Database,
+
   Activity,
   RefreshCw,
-  Download,
   Columns,
-  Brain,
   Filter,
   User as UserIcon,
   PlusCircle,
-  ArrowRight,
   Eye,
   Upload,
   Send,
@@ -29,7 +27,7 @@ import { useDebounce } from './hooks/useDebounce';
 import { NotificationsProvider, useNotifications } from './hooks/useNotifications';
 import { ConfirmModal } from './components/ConfirmModal';
 import { SkeletonTable, SkeletonCard } from './components/LoadingSpinner';
-import { BarChart, LineChart, StatsCard, DonutChart } from './components/Charts';
+import { BarChart, StatsCard, DonutChart } from './components/Charts';
 import { DarkModeToggleCompact } from './components/DarkModeToggle';
 import { DateRangeFilter, useDateRange } from './components/DateRangeFilter';
 import { PatientsTable } from './components/LeadsTable';
@@ -46,11 +44,12 @@ import { ScheduleModal } from './components/ScheduleModal';
 import { ImportPatientsModal } from './components/ImportPatientsModal';
 import { Opportunity, OpportunityStatus, Patient, User, Notification } from './types';
 import { isAdmin } from './utils/permissions';
-import TrelloDashboard from './components/TrelloDashboard';
+
 import { UserManagement } from './components/UserManagement';
 import { BulkMessageModal } from './components/BulkMessageModal';
+import { CampaignWizard } from './components/CampaignWizard';
+import { CampaignHistory } from './components/CampaignHistory';
 import {
-  searchPatientsByKeyword,
   getStoredOpportunities,
   getAllOpportunities,
   mergeNewOpportunities,
@@ -66,7 +65,7 @@ import {
 
 // --- Page Components ---
 
-type PageType = 'dashboard' | 'search' | 'pipeline' | 'database' | 'trello' | 'users';
+type PageType = 'dashboard' | 'pipeline' | 'database' | 'users';
 
 const DashboardPage = ({
   opportunities,
@@ -248,145 +247,6 @@ const DashboardPage = ({
   );
 };
 
-const SearchPage = ({
-  opportunities,
-  setOpportunities,
-  onUpdateStatus,
-  onViewDetails,
-  onClearAll,
-  onBulkMessage,
-  toast,
-  user
-}: {
-  opportunities: Opportunity[],
-  setOpportunities: (o: Opportunity[]) => void,
-  onUpdateStatus: (id: string, s: OpportunityStatus) => void,
-  onViewDetails: (o: Opportunity) => void,
-  onClearAll: () => void,
-  onBulkMessage: (recipients: Opportunity[]) => void,
-  toast: any,
-  user: User | null
-}) => {
-  const [query, setQuery] = useState('');
-  const [limit, setLimit] = useState(5);
-  const [loading, setLoading] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!query.trim()) return;
-    setLoading(true);
-    try {
-      const newOpps = await searchPatientsByKeyword(query, limit);
-      const merged = mergeNewOpportunities(opportunities, newOpps);
-      setOpportunities(merged);
-      setQuery('');
-      toast.success(`${newOpps.length} paciente(s) encontrado(s)!`);
-    } catch (error) {
-      toast.error("Erro ao buscar. Verifique a conexão.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleBulkAction = () => {
-    let targets = opportunities;
-    if (selectedIds.length > 0) {
-      targets = opportunities.filter(o => selectedIds.includes(o.id));
-    }
-    onBulkMessage(targets);
-  };
-
-  return (
-    <div className="space-y-6 animate-fade-in">
-      <div>
-        <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Busca Ativa (Reativação)</h2>
-        <p className="text-gray-500 dark:text-gray-400">Localize pacientes {isAdmin(user) && 'no banco de dados (Supabase) '}para iniciar o processo de reativação.</p>
-      </div>
-
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
-        <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-4 items-end sm:items-center">
-
-          <div className="flex-1 w-full relative">
-            <label className="block text-xs font-medium text-gray-500 mb-1 ml-1">Palavra-chave</label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search className="h-5 w-5 text-gray-400" />
-              </div>
-              <input
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                className="block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all placeholder-gray-400 dark:placeholder-gray-500"
-                placeholder="Ex: implante, ortodontia..."
-              />
-            </div>
-          </div>
-
-          <div className="w-full sm:w-32">
-            <label className="block text-xs font-medium text-gray-500 mb-1 ml-1">Quantidade</label>
-            <input
-              type="number"
-              min="1"
-              max="100"
-              value={limit}
-              onChange={(e) => setLimit(Number(e.target.value))}
-              className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-center"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading || !query.trim()}
-            className={`w-full sm:w-auto px-6 py-3 mt-auto rounded-lg font-medium text-white transition-all shadow-sm h-[50px] ${loading ? 'bg-indigo-400' : 'bg-indigo-600 hover:bg-indigo-700 hover:shadow-md'}`}
-          >
-            {loading ? 'Buscando...' : 'Prospectar'}
-          </button>
-        </form>
-      </div>
-
-      <div>
-        <div className="flex justify-between items-center mb-3">
-          <h3 className="font-semibold text-gray-800 dark:text-white">
-            {selectedIds.length > 0 ? `${selectedIds.length} selecionado(s)` : 'Pacientes Selecionados para Reativação'}
-          </h3>
-          <div className="flex gap-2">
-            {opportunities.length > 0 && (
-              <>
-                <button
-                  onClick={handleBulkAction}
-                  className="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-green-600 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
-                >
-                  <Send size={16} />
-                  {selectedIds.length > 0 ? `Enviar para ${selectedIds.length}` : 'Disparo em Massa (Todos)'}
-                </button>
-                <button
-                  onClick={onClearAll}
-                  className="px-4 py-2 text-sm font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors"
-                >
-                  Limpar Base
-                </button>
-                <ExportMenu
-                  data={opportunities}
-                  filename="pacientes_allo_oral"
-                  pdfTitle="Relatório de Pacientes - Allo Oral Clinic"
-                />
-              </>
-            )}
-          </div>
-        </div>
-        <PatientsTable
-          items={opportunities}
-          onUpdateStatus={onUpdateStatus}
-          onViewDetails={onViewDetails}
-          selectedIds={selectedIds}
-          onSelectionChange={setSelectedIds}
-        />
-      </div>
-    </div>
-  );
-};
-
 const PipelinePage = ({
   opportunities,
   onUpdateStatus,
@@ -436,6 +296,7 @@ const DatabasePage = ({
   opportunities,
   onAddToPipeline,
   onBulkAddToPipeline,
+  onBulkMessage,
   onRefresh,
   onDeleteAll,
   user
@@ -445,39 +306,54 @@ const DatabasePage = ({
   opportunities: Opportunity[],
   onAddToPipeline: (patient: Patient) => void,
   onBulkAddToPipeline: (patients: Patient[]) => void,
+  onBulkMessage: (recipients: Patient[]) => void,
   onRefresh: () => void,
   onDeleteAll: () => void,
   user: User | null
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterTag, setFilterTag] = useState('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'available' | 'reactivated'>('all');
   const [showImportModal, setShowImportModal] = useState(false);
   const [selectedPatientIds, setSelectedPatientIds] = useState<Set<string>>(new Set());
 
   // Debounce search term to optimize performance
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
-  // Extrair todas as tags únicas para o filtro
+  // Extrair todas as tags unicas para o filtro
   const allTags = Array.from(new Set(patients.flatMap(p => Array.isArray(p.history) ? p.history : []))) as string[];
 
-  // Filtragem otimizada com debounce
-  const filteredPatients = patients.filter(p => {
-    const matchesSearch = p.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-      p.phone.includes(debouncedSearchTerm);
-    const matchesTag = filterTag === 'all' || (Array.isArray(p.history) && p.history.includes(filterTag));
-    return matchesSearch && matchesTag;
-  });
-
-  // Função auxiliar para checar status no pipeline
+  // Funcao auxiliar para checar status no pipeline
   const getPipelineStatus = (patientId: string): OpportunityStatus | null => {
     const opp = opportunities.find(o => o.patientId === patientId);
     return opp ? opp.status : null;
   };
 
-  // Pacientes disponíveis para reativação (não estão no pipeline)
+  // Obter opportunity de um paciente
+  const getOpportunity = (patientId: string): Opportunity | undefined => {
+    return opportunities.find(o => o.patientId === patientId);
+  };
+
+  // Filtragem otimizada com debounce - busca por nome, telefone E historico
+  const filteredPatients = patients.filter(p => {
+    const searchLower = debouncedSearchTerm.toLowerCase();
+    const matchesSearch = !debouncedSearchTerm ||
+      p.name.toLowerCase().includes(searchLower) ||
+      p.phone.includes(debouncedSearchTerm) ||
+      (Array.isArray(p.history) && p.history.some(tag => tag.toLowerCase().includes(searchLower))) ||
+      (typeof p.history === 'string' && p.history.toLowerCase().includes(searchLower));
+    const matchesTag = filterTag === 'all' || (Array.isArray(p.history) && p.history.includes(filterTag));
+    const pipelineStatus = getPipelineStatus(p.id);
+    const matchesStatus = filterStatus === 'all' ||
+      (filterStatus === 'available' && !pipelineStatus) ||
+      (filterStatus === 'reactivated' && !!pipelineStatus);
+    return matchesSearch && matchesTag && matchesStatus;
+  });
+
+  // Pacientes disponiveis para reativacao (nao estao no pipeline) dentro dos filtrados
   const availablePatients = filteredPatients.filter(p => !getPipelineStatus(p.id));
 
-  // Funções de seleção
+  // Funcoes de selecao
   const togglePatientSelection = (patientId: string) => {
     setSelectedPatientIds(prev => {
       const newSet = new Set(prev);
@@ -506,17 +382,25 @@ const DatabasePage = ({
     }
   };
 
+  const handleBulkWhatsApp = () => {
+    const selectedPatients = patients.filter(p => selectedPatientIds.has(p.id));
+    if (selectedPatients.length > 0) {
+      onBulkMessage(selectedPatients);
+    }
+  };
+
   const selectedCount = selectedPatientIds.size;
   const allAvailableSelected = availablePatients.length > 0 && selectedPatientIds.size === availablePatients.length;
+  const reactivatedCount = filteredPatients.filter(p => !!getPipelineStatus(p.id)).length;
 
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Base de Pacientes (Geral)</h2>
-          <p className="text-gray-500 dark:text-gray-400">Visualização completa dos registros odontológicos e status de reativação.</p>
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Base de Pacientes</h2>
+          <p className="text-gray-500 dark:text-gray-400">Gerencie pacientes, filtre por palavra-chave e dispare mensagens de reativacao.</p>
         </div>
-        <div className="flex gap-3 items-center self-end">
+        <div className="flex flex-wrap gap-2 items-center self-end">
           {isAdmin(user) && (
             <div className="hidden sm:flex text-xs bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 px-2 py-1 rounded border border-green-200 dark:border-green-700 items-center h-9">
               <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
@@ -524,14 +408,24 @@ const DatabasePage = ({
             </div>
           )}
           {selectedCount > 0 && (
-            <button
-              onClick={handleBulkReactivate}
-              className="px-3 py-2 text-sm font-medium text-white bg-green-600 border border-green-600 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
-              title="Reativar pacientes selecionados"
-            >
-              <PlusCircle size={16} />
-              Reativar {selectedCount} Selecionado{selectedCount > 1 ? 's' : ''}
-            </button>
+            <>
+              <button
+                onClick={handleBulkWhatsApp}
+                className="px-3 py-2 text-sm font-medium text-white bg-green-600 border border-green-600 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+                title="Disparar WhatsApp para selecionados"
+              >
+                <Send size={16} />
+                WhatsApp ({selectedCount})
+              </button>
+              <button
+                onClick={handleBulkReactivate}
+                className="px-3 py-2 text-sm font-medium text-white bg-indigo-600 border border-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2"
+                title="Reativar pacientes selecionados no Pipeline"
+              >
+                <PlusCircle size={16} />
+                Reativar ({selectedCount})
+              </button>
+            </>
           )}
           <button
             onClick={() => setShowImportModal(true)}
@@ -546,7 +440,7 @@ const DatabasePage = ({
             onClick={onRefresh}
             disabled={loading}
             className="px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Atualizar base de pacientes do banco de dados"
+            title="Atualizar base de pacientes"
           >
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
             {loading ? 'Atualizando...' : 'Atualizar'}
@@ -571,20 +465,20 @@ const DatabasePage = ({
         </div>
       </div>
 
-      {/* Filtros Avançados */}
+      {/* Filtros Avancados */}
       <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
         <div className="flex flex-col sm:flex-row gap-4 mb-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-2.5 text-gray-400 h-5 w-5" />
             <input
               type="text"
-              placeholder="Buscar por nome ou telefone..."
+              placeholder="Buscar por nome, telefone ou palavra-chave (ex: implante, ortodontia)..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg w-full focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
             />
           </div>
-          <div className="relative w-full sm:w-64">
+          <div className="relative w-full sm:w-56">
             <Filter className="absolute left-3 top-2.5 text-gray-400 h-5 w-5" />
             <select
               value={filterTag}
@@ -597,22 +491,40 @@ const DatabasePage = ({
               ))}
             </select>
           </div>
+          <div className="relative w-full sm:w-52">
+            <Database className="absolute left-3 top-2.5 text-gray-400 h-5 w-5" />
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value as 'all' | 'available' | 'reactivated')}
+              className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg w-full focus:ring-indigo-500 focus:border-indigo-500 appearance-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            >
+              <option value="all">Todos os Status</option>
+              <option value="available">Disponiveis</option>
+              <option value="reactivated">Reativados</option>
+            </select>
+          </div>
         </div>
         {/* Contador de Resultados */}
-        <div className="text-sm text-gray-600 dark:text-gray-400">
-          Exibindo <span className="font-semibold text-indigo-600">{filteredPatients.length}</span> de{' '}
-          <span className="font-semibold">{patients.length}</span> pacientes
-          {(searchTerm || filterTag !== 'all') && (
-            <button
-              onClick={() => {
-                setSearchTerm('');
-                setFilterTag('all');
-              }}
-              className="ml-3 text-indigo-600 hover:text-indigo-700 font-medium"
-            >
-              Limpar filtros
-            </button>
-          )}
+        <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
+          <div>
+            Exibindo <span className="font-semibold text-indigo-600">{filteredPatients.length}</span> de{' '}
+            <span className="font-semibold">{patients.length}</span> pacientes
+            {reactivatedCount > 0 && (
+              <span className="ml-2 text-green-600">({reactivatedCount} reativado{reactivatedCount > 1 ? 's' : ''})</span>
+            )}
+            {(searchTerm || filterTag !== 'all' || filterStatus !== 'all') && (
+              <button
+                onClick={() => {
+                  setSearchTerm('');
+                  setFilterTag('all');
+                  setFilterStatus('all');
+                }}
+                className="ml-3 text-indigo-600 hover:text-indigo-700 font-medium"
+              >
+                Limpar filtros
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -631,20 +543,21 @@ const DatabasePage = ({
                       onChange={toggleSelectAll}
                       disabled={availablePatients.length === 0}
                       className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 disabled:opacity-50"
-                      title={availablePatients.length === 0 ? 'Nenhum paciente disponível' : 'Selecionar todos disponíveis'}
+                      title={availablePatients.length === 0 ? 'Nenhum paciente disponivel' : 'Selecionar todos disponiveis'}
                     />
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nome</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Telefone</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Histórico / Tratamentos</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Última Visita</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status Pipeline</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Ação</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Historico / Tratamentos</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ultima Visita</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Acao</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                 {filteredPatients.length > 0 ? filteredPatients.map((p) => {
                   const pipelineStatus = getPipelineStatus(p.id);
+                  const opportunity = getOpportunity(p.id);
                   const isAvailable = !pipelineStatus;
                   const isSelected = selectedPatientIds.has(p.id);
 
@@ -657,7 +570,7 @@ const DatabasePage = ({
                           onChange={() => togglePatientSelection(p.id)}
                           disabled={!isAvailable}
                           className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 disabled:opacity-30 disabled:cursor-not-allowed"
-                          title={isAvailable ? 'Selecionar para reativação' : 'Já está no pipeline'}
+                          title={isAvailable ? 'Selecionar para reativacao' : 'Ja esta no pipeline'}
                         />
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{p.name}</td>
@@ -668,38 +581,52 @@ const DatabasePage = ({
                             <span key={tag} className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-xs border border-gray-200 dark:border-gray-600 dark:text-gray-300">{tag}</span>
                           ))}
                           {!Array.isArray(p.history) && p.history && (
-                            <span className="text-xs text-gray-400 dark:text-gray-500 italic">Sem tags</span>
+                            <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-xs border border-gray-200 dark:border-gray-600 dark:text-gray-300">{String(p.history)}</span>
                           )}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{p.lastVisit ? new Date(p.lastVisit).toLocaleDateString() : '-'}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         {pipelineStatus ? (
-                          <StatusBadge status={pipelineStatus} />
+                          <div>
+                            <StatusBadge status={pipelineStatus} />
+                            {opportunity?.createdAt && (
+                              <p className="text-xs text-gray-400 mt-1">
+                                {new Date(opportunity.createdAt).toLocaleDateString()}
+                              </p>
+                            )}
+                          </div>
                         ) : (
-                          <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-500 border border-gray-200">
-                            Disponível
+                          <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-500 border border-gray-200 dark:bg-gray-700 dark:text-gray-400 dark:border-gray-600">
+                            Disponivel
                           </span>
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
                         {pipelineStatus ? (
-                          <button
-                            disabled
-                            className="inline-flex items-center px-3 py-1 bg-gray-50 text-gray-400 rounded-md cursor-default text-xs font-medium border border-gray-200"
-                          >
+                          <span className="inline-flex items-center px-3 py-1 bg-gray-50 dark:bg-gray-700 text-gray-400 rounded-md text-xs font-medium border border-gray-200 dark:border-gray-600">
                             <Eye size={14} className="mr-1.5" />
-                            Em Progresso
-                          </button>
+                            No Pipeline
+                          </span>
                         ) : (
-                          <button
-                            onClick={() => onAddToPipeline(p)}
-                            className="inline-flex items-center px-3 py-1 bg-indigo-50 text-indigo-700 rounded-md hover:bg-indigo-100 transition-colors text-xs font-medium border border-indigo-100"
-                            title="Adicionar ao Kanban para reativação"
-                          >
-                            <PlusCircle size={14} className="mr-1.5" />
-                            Iniciar Reativação
-                          </button>
+                          <div className="flex justify-end gap-1">
+                            <button
+                              onClick={() => onBulkMessage([p])}
+                              className="inline-flex items-center px-3 py-1 bg-green-50 text-green-700 rounded-md hover:bg-green-100 transition-colors text-xs font-medium border border-green-100 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800 dark:hover:bg-green-900/40"
+                              title="Enviar WhatsApp"
+                            >
+                              <Send size={14} className="mr-1.5" />
+                              WhatsApp
+                            </button>
+                            <button
+                              onClick={() => onAddToPipeline(p)}
+                              className="inline-flex items-center px-3 py-1 bg-indigo-50 text-indigo-700 rounded-md hover:bg-indigo-100 transition-colors text-xs font-medium border border-indigo-100 dark:bg-indigo-900/20 dark:text-indigo-400 dark:border-indigo-800 dark:hover:bg-indigo-900/40"
+                              title="Adicionar ao Pipeline"
+                            >
+                              <PlusCircle size={14} className="mr-1.5" />
+                              Pipeline
+                            </button>
+                          </div>
                         )}
                       </td>
                     </tr>
@@ -728,7 +655,7 @@ const DatabasePage = ({
 
 // --- Main App Shell ---
 
-type Page = 'dashboard' | 'search' | 'pipeline' | 'database' | 'trello' | 'users';
+type Page = 'dashboard' | 'pipeline' | 'database' | 'campaigns' | 'users';
 
 const AppContent = ({ user, setUser }: { user: User | null; setUser: (user: User | null) => void }) => {
   const toast = useToast();
@@ -742,7 +669,8 @@ const AppContent = ({ user, setUser }: { user: User | null; setUser: (user: User
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [pendingScheduleId, setPendingScheduleId] = useState<string | null>(null);
   const [bulkMessageOpen, setBulkMessageOpen] = useState(false);
-  const [bulkMessageRecipients, setBulkMessageRecipients] = useState<Opportunity[]>([]);
+  const [bulkMessageRecipients, setBulkMessageRecipients] = useState<Array<Opportunity | Patient>>([]);
+  const [campaignWizardOpen, setCampaignWizardOpen] = useState(false);
 
   // Data State
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
@@ -982,6 +910,40 @@ const AppContent = ({ user, setUser }: { user: User | null; setUser: (user: User
     setBulkMessageOpen(true);
   };
 
+  const handleBulkMessageFromDatabase = async (patients: Patient[]) => {
+    // Create opportunities for patients that don't have one yet
+    const patientsToAdd = patients.filter(
+      p => !opportunities.some(o => o.patientId === p.id)
+    );
+
+    try {
+      const createdOpps: Opportunity[] = [];
+      for (const patient of patientsToAdd) {
+        const newOpp = await createOpportunity({
+          patientId: patient.id,
+          name: patient.name,
+          phone: patient.phone,
+          keywordFound: 'Reativação (Base de Dados)',
+          status: OpportunityStatus.NEW,
+          clinicalRecords: patient.clinicalRecords
+        });
+        createdOpps.push(newOpp);
+      }
+
+      if (createdOpps.length > 0) {
+        const merged = mergeNewOpportunities(opportunities, createdOpps);
+        setOpportunities(merged);
+      }
+
+      // Open bulk message modal with patients directly
+      setBulkMessageRecipients(patients);
+      setBulkMessageOpen(true);
+    } catch (error) {
+      console.error('Error creating opportunities for bulk message:', error);
+      toast.error('Erro ao preparar envio. Tente novamente.');
+    }
+  };
+
   const NavItem = ({ id, icon: Icon, label }: { id: Page, icon: any, label: string }) => (
     <button
       onClick={() => { setPage(id); setSidebarOpen(false); }}
@@ -1042,12 +1004,9 @@ const AppContent = ({ user, setUser }: { user: User | null; setUser: (user: User
         <nav className="px-4 flex-1 overflow-y-auto">
           <div className="mb-2 px-4 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Menu Principal</div>
           <NavItem id="dashboard" icon={LayoutDashboard} label="Dashboard" />
-          <NavItem id="search" icon={Search} label="Busca Ativa" />
-          <NavItem id="pipeline" icon={Columns} label="Pipeline" />
           <NavItem id="database" icon={Database} label="Base de Pacientes" />
-
-          <div className="mt-4 mb-2 px-4 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Ferramentas</div>
-          <NavItem id="trello" icon={Activity} label="Trello Board" />
+          <NavItem id="pipeline" icon={Columns} label="Pipeline" />
+          <NavItem id="campaigns" icon={Send} label="Campanhas" />
 
           {/* Seção Admin - Apenas para administradores */}
           {isAdmin(user) && (
@@ -1141,20 +1100,6 @@ const AppContent = ({ user, setUser }: { user: User | null; setUser: (user: User
               />
             </div>
           )}
-          {page === 'search' && (
-            <div className="h-full overflow-y-auto">
-              <SearchPage
-                opportunities={opportunities}
-                setOpportunities={setOpportunities}
-                onUpdateStatus={handleStatusUpdate}
-                onViewDetails={setSelectedOpportunity}
-                onClearAll={handleClearAll}
-                onBulkMessage={handleBulkMessage}
-                toast={toast}
-                user={user}
-              />
-            </div>
-          )}
           {page === 'pipeline' && (
             <PipelinePage
               opportunities={opportunities}
@@ -1170,6 +1115,7 @@ const AppContent = ({ user, setUser }: { user: User | null; setUser: (user: User
                 loading={databaseLoading}
                 onAddToPipeline={handleAddFromDatabase}
                 onBulkAddToPipeline={handleBulkAddFromDatabase}
+                onBulkMessage={handleBulkMessageFromDatabase}
                 opportunities={opportunities}
                 onRefresh={handleRefreshPatients}
                 onDeleteAll={handleDeleteAllPatients}
@@ -1177,9 +1123,9 @@ const AppContent = ({ user, setUser }: { user: User | null; setUser: (user: User
               />
             </div>
           )}
-          {page === 'trello' && (
-            <div className="h-full overflow-y-auto">
-              <TrelloDashboard />
+          {page === 'campaigns' && (
+            <div className="h-full overflow-y-auto p-6">
+              <CampaignHistory onNewCampaign={() => setCampaignWizardOpen(true)} />
             </div>
           )}
           {page === 'users' && isAdmin(user) && (
@@ -1191,6 +1137,12 @@ const AppContent = ({ user, setUser }: { user: User | null; setUser: (user: User
       </div >
 
       <SettingsModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
+
+      <CampaignWizard
+        isOpen={campaignWizardOpen}
+        onClose={() => setCampaignWizardOpen(false)}
+        onSuccess={() => { setCampaignWizardOpen(false); setPage('campaigns'); }}
+      />
 
       <ProfileModal
         isOpen={profileOpen}

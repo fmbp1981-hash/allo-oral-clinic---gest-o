@@ -1,8 +1,5 @@
 import React, { useState, useRef } from 'react';
 import { X, Upload, FileText, AlertCircle, CheckCircle } from 'lucide-react';
-import Papa from 'papaparse';
-import * as XLSX from 'xlsx';
-import { importPatientsFromFile } from '../services/apiService';
 
 interface ImportPatientsModalProps {
   isOpen: boolean;
@@ -24,6 +21,7 @@ export const ImportPatientsModal: React.FC<ImportPatientsModalProps> = ({
     valid?: number;
     imported?: number;
     skipped?: number;
+    duplicates?: number;
     errors?: string[];
   } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -44,41 +42,6 @@ export const ImportPatientsModal: React.FC<ImportPatientsModalProps> = ({
     }
   };
 
-  const parseCSV = (file: File): Promise<any[]> => {
-    return new Promise((resolve, reject) => {
-      Papa.parse(file, {
-        header: true,
-        skipEmptyLines: true,
-        complete: (results) => {
-          resolve(results.data);
-        },
-        error: (error) => {
-          reject(error);
-        }
-      });
-    });
-  };
-
-  const parseXLSX = (file: File): Promise<any[]> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const data = e.target?.result;
-          const workbook = XLSX.read(data, { type: 'binary' });
-          const firstSheetName = workbook.SheetNames[0];
-          const worksheet = workbook.Sheets[firstSheetName];
-          const jsonData = XLSX.utils.sheet_to_json(worksheet);
-          resolve(jsonData);
-        } catch (error) {
-          reject(error);
-        }
-      };
-      reader.onerror = (error) => reject(error);
-      reader.readAsBinaryString(file);
-    });
-  };
-
   const handleImport = async () => {
     if (!file) return;
 
@@ -86,37 +49,49 @@ export const ImportPatientsModal: React.FC<ImportPatientsModalProps> = ({
     setResult(null);
 
     try {
-      let parsedData: any[];
+      const token = localStorage.getItem('auth_token');
+      const formData = new FormData();
+      formData.append('file', file);
 
-      const fileExtension = file.name.split('.').pop()?.toLowerCase();
+      const res = await fetch('/api/patients/import', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
 
-      if (fileExtension === 'csv') {
-        parsedData = await parseCSV(file);
-      } else if (fileExtension === 'xlsx') {
-        parsedData = await parseXLSX(file);
-      } else {
-        throw new Error('Formato de arquivo não suportado');
+      const importResult = await res.json() as {
+        success?: boolean;
+        total?: number;
+        inserted?: number;
+        updated?: number;
+        error?: string;
+      };
+
+      if (!res.ok) {
+        setResult({ success: false, message: importResult.error ?? 'Erro ao importar' });
+        return;
       }
 
-      console.log('Dados parseados:', parsedData);
+      const mapped = {
+        success: true,
+        message: `Importação concluída: ${importResult.inserted ?? 0} adicionados, ${importResult.updated ?? 0} atualizados.`,
+        imported: importResult.inserted ?? 0,
+        total: importResult.total ?? 0,
+      };
 
-      // Call API to import
-      const importResult = await importPatientsFromFile(parsedData);
+      setResult(mapped);
 
-      setResult(importResult);
-
-      // Se sucesso, aguardar 2 segundos e fechar modal
-      if (importResult.success && importResult.imported > 0) {
+      if (mapped.imported > 0) {
         setTimeout(() => {
           onSuccess();
           handleClose();
         }, 2000);
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Erro ao importar:', error);
       setResult({
         success: false,
-        message: `Erro ao importar: ${error.message || 'Erro desconhecido'}`,
+        message: `Erro ao importar: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
       });
     } finally {
       setImporting(false);
@@ -220,9 +195,14 @@ export const ImportPatientsModal: React.FC<ImportPatientsModalProps> = ({
                       <p>Total de linhas no arquivo: {result.total}</p>
                       <p>Pacientes válidos encontrados: {result.valid}</p>
                       <p>Importados com sucesso: {result.imported}</p>
-                      {result.skipped && result.skipped > 0 && (
+                      {result.duplicates && result.duplicates > 0 && (
                         <p className="text-yellow-700 dark:text-yellow-400">
-                          Ignorados (duplicados ou erros): {result.skipped}
+                          Duplicados (telefone j\u00e1 existente): {result.duplicates}
+                        </p>
+                      )}
+                      {result.skipped && result.skipped > 0 && result.skipped !== result.duplicates && (
+                        <p className="text-yellow-700 dark:text-yellow-400">
+                          Ignorados (erros): {(result.skipped || 0) - (result.duplicates || 0)}
                         </p>
                       )}
                     </div>

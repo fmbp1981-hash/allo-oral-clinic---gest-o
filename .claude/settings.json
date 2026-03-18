@@ -1,0 +1,5 @@
+{
+  "plugins": [
+    { "type": "local", "path": "C:/Users/Dell/.claude/plugins/intellix-plugin" }
+  ]
+}
