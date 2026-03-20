@@ -203,48 +203,15 @@ export const verifyWebhook = async (req: Request, res: Response) => {
 };
 
 /**
- * Webhook handler for receiving messages (POST - messages)
+ * @deprecated Use Next.js webhook handlers instead:
+ *   - POST /api/webhook/whatsapp/evolution (Evolution API)
+ *   - GET/POST /api/webhook/whatsapp/meta (Meta Cloud API)
+ * Those routes fully process incoming messages via processIncomingMessage().
+ * This Express handler is kept only for backward compatibility.
  */
 export const handleWebhook = async (req: Request, res: Response) => {
-  try {
-    const body = req.body;
-
-    logger.info('Webhook received', {
-      object: body.object,
-      entry: body.entry?.length,
-    });
-
-    // Acknowledge receipt immediately
-    res.status(200).json({ success: true });
-
-    // Process webhook data
-    if (body.object === 'whatsapp_business_account') {
-      for (const entry of body.entry || []) {
-        for (const change of entry.changes || []) {
-          if (change.field === 'messages') {
-            const messages = change.value.messages || [];
-            const contacts = change.value.contacts || [];
-
-            for (const message of messages) {
-              logger.info('Message received', {
-                from: message.from,
-                type: message.type,
-                messageId: message.id,
-              });
-
-              // TODO: Process incoming message
-              // - Save to database
-              // - Update opportunity status
-              // - Trigger notifications
-            }
-          }
-        }
-      }
-    }
-  } catch (error: any) {
-    logger.error('Error handling webhook:', error);
-    // Don't return error to WhatsApp - already acknowledged
-  }
+  logger.warn('DEPRECATED: Express webhook called. Configure webhooks to use Next.js routes: /api/webhook/whatsapp/evolution or /api/webhook/whatsapp/meta');
+  res.status(200).json({ success: true, deprecated: true, redirect: '/api/webhook/whatsapp/evolution or /api/webhook/whatsapp/meta' });
 };
 
 /**

@@ -19,7 +19,8 @@ import {
   Eye,
   Upload,
   Send,
-  Trash2
+  Trash2,
+  MessageCircle
 } from 'lucide-react';
 import { useToast } from './hooks/useToast';
 import { useConfirm } from './hooks/useConfirm';
@@ -49,6 +50,7 @@ import { UserManagement } from './components/UserManagement';
 import { BulkMessageModal } from './components/BulkMessageModal';
 import { CampaignWizard } from './components/CampaignWizard';
 import { CampaignHistory } from './components/CampaignHistory';
+import { AtendimentoPage } from './components/AtendimentoPage';
 import {
   getStoredOpportunities,
   getAllOpportunities,
@@ -654,7 +656,7 @@ const DatabasePage = ({
 
 // --- Main App Shell ---
 
-type Page = 'dashboard' | 'pipeline' | 'database' | 'campaigns' | 'users';
+type Page = 'dashboard' | 'pipeline' | 'database' | 'campaigns' | 'atendimento' | 'users';
 
 const AppContent = ({ user, setUser }: { user: User | null; setUser: (user: User | null) => void }) => {
   const toast = useToast();
@@ -1006,6 +1008,7 @@ const AppContent = ({ user, setUser }: { user: User | null; setUser: (user: User
           <NavItem id="database" icon={Database} label="Base de Pacientes" />
           <NavItem id="pipeline" icon={Columns} label="Pipeline" />
           <NavItem id="campaigns" icon={Send} label="Campanhas" />
+          <NavItem id="atendimento" icon={MessageCircle} label="Atendimento" />
 
           {/* Seção Admin - Apenas para administradores */}
           {isAdmin(user) && (
@@ -1125,6 +1128,11 @@ const AppContent = ({ user, setUser }: { user: User | null; setUser: (user: User
           {page === 'campaigns' && (
             <div className="h-full overflow-y-auto p-6">
               <CampaignHistory onNewCampaign={() => setCampaignWizardOpen(true)} />
+            </div>
+          )}
+          {page === 'atendimento' && (
+            <div className="h-full overflow-hidden">
+              <AtendimentoPage />
             </div>
           )}
           {page === 'users' && isAdmin(user) && (

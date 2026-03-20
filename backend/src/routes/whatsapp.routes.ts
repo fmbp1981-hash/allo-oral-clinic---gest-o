@@ -34,7 +34,7 @@ router.post('/send/bulk', criticalLimiter, sendBulkMessages);
 // Webhook verification (GET)
 router.get('/webhook', verifyWebhook);
 
-// Webhook handler (POST)
+// Webhook handler (POST) — DEPRECATED: use Next.js routes /api/webhook/whatsapp/evolution or /api/webhook/whatsapp/meta
 router.post('/webhook', handleWebhook);
 
 export default router;

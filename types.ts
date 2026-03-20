@@ -83,3 +83,37 @@ export interface Notification {
   read: boolean;
   createdAt: string;
 }
+
+// --- Agent Conversation Types ---
+
+export type ConversationStatus = 'active' | 'escalated' | 'closed';
+
+export interface AgentConversation {
+  id: string;
+  patient_phone: string;
+  status: ConversationStatus;
+  created_at: string;
+  last_message_at: string;
+  patients?: { id: string; name: string } | null;
+  agent_messages?: AgentMessage[];
+}
+
+export interface AgentMessage {
+  id: string;
+  role: 'patient' | 'agent' | 'human' | 'system';
+  content: string;
+  created_at: string;
+}
+
+export interface HandoffRequest {
+  id: string;
+  conversation_id: string;
+  reason: string;
+  ai_summary: string;
+  status: 'pending' | 'accepted' | 'rejected';
+  created_at: string;
+  agent_conversations?: {
+    patient_phone: string;
+    patients?: { name: string } | null;
+  };
+}
