@@ -1,16 +1,27 @@
 import OpenAI from 'openai';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// Lazy-initialize clients to avoid build-time crash when env vars are absent
+let _openai: OpenAI | null = null;
+function getOpenAI(): OpenAI {
+  if (!_openai) _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  return _openai;
+}
 
-// Optional Anthropic fallback
-let anthropic: any = null;
-if (process.env.ANTHROPIC_API_KEY) {
-  try {
-    const Anthropic = require('@anthropic-ai/sdk');
-    anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-  } catch {
-    // Anthropic SDK not installed — fallback disabled
+let _anthropic: any = null;
+let _anthropicChecked = false;
+function getAnthropic(): any {
+  if (!_anthropicChecked) {
+    _anthropicChecked = true;
+    if (process.env.ANTHROPIC_API_KEY) {
+      try {
+        const Anthropic = require('@anthropic-ai/sdk');
+        _anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+      } catch {
+        // SDK not installed
+      }
+    }
   }
+  return _anthropic;
 }
 
 export type MessageRole = 'patient' | 'agent' | 'system';
@@ -176,7 +187,7 @@ export async function generateAgentReply(input: AgentResponseInput): Promise<Age
 
   // --- Primary: OpenAI ---
   try {
-    const response = await openai.chat.completions.create({
+    const response = await getOpenAI().chat.completions.create({
       model,
       messages,
       max_tokens: 400,
@@ -196,7 +207,8 @@ export async function generateAgentReply(input: AgentResponseInput): Promise<Age
     console.error('OpenAI failed, trying Anthropic fallback...', openaiError);
 
     // --- Fallback: Anthropic ---
-    if (!anthropic) {
+    const anthropicClient = getAnthropic();
+    if (!anthropicClient) {
       throw openaiError; // No fallback available
     }
 
@@ -207,7 +219,7 @@ export async function generateAgentReply(input: AgentResponseInput): Promise<Age
         content: m.content,
       }));
 
-      const response = await anthropic.messages.create({
+      const response = await anthropicClient.messages.create({
         model: 'claude-sonnet-4-5-20250929',
         system: systemContent,
         messages: anthropicMessages,
