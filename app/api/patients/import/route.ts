@@ -51,13 +51,20 @@ export async function POST(request: NextRequest) {
     imported_at: now,
   }));
 
+  // Deduplicate by phone — PostgreSQL ON CONFLICT can't affect the same row twice in one statement
+  const uniqueByPhone = new Map<string, typeof records[number]>();
+  for (const rec of records) {
+    uniqueByPhone.set(rec.phone, rec); // last occurrence wins
+  }
+  const dedupedRecords = Array.from(uniqueByPhone.values());
+
   // Batch upserts in chunks of 500 to avoid payload limits
   const CHUNK = 500;
   let inserted = 0;
   let updated = 0;
 
-  for (let i = 0; i < records.length; i += CHUNK) {
-    const chunk = records.slice(i, i + CHUNK);
+  for (let i = 0; i < dedupedRecords.length; i += CHUNK) {
+    const chunk = dedupedRecords.slice(i, i + CHUNK);
     const { data, error } = await supabase
       .from('patients')
       .upsert(chunk, { onConflict: 'user_id,phone', ignoreDuplicates: false })
@@ -76,5 +83,6 @@ export async function POST(request: NextRequest) {
     total: rows.length,
     inserted,
     updated: rows.length - inserted,
+    duplicatesRemoved: rows.length - dedupedRecords.length,
   });
 }
