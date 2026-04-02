@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateAuthHeader, isAuthError } from '../lib/auth';
 import { getSupabaseClient } from '../lib/supabase';
+import { parseBody, createTemplateSchema } from '../lib/validators';
 
 /**
  * GET /api/templates
@@ -53,15 +54,9 @@ export async function POST(request: NextRequest) {
     }
 
     const { userId } = auth.data;
-    const body = await request.json();
-    const { name, content, type } = body;
-
-    if (!name || !content) {
-      return NextResponse.json(
-        { error: 'Nome e conteúdo são obrigatórios' },
-        { status: 400 }
-      );
-    }
+    const parsed = await parseBody(request, createTemplateSchema);
+    if (parsed.error) return parsed.error;
+    const { name, content, type } = parsed.data;
 
     const supabase = getSupabaseClient();
 
@@ -71,7 +66,7 @@ export async function POST(request: NextRequest) {
         user_id: userId,
         name,
         content,
-        type: type || 'custom',
+        type,
       })
       .select()
       .single();

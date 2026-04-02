@@ -94,10 +94,107 @@ export async function processIncomingMessage(
   const last9 = phone.slice(-9);
   const { data: patientData } = await supabase
     .from('patients')
-    .select('name, category, dentist_name, observations')
+    .select('id, name, category, dentist_name, observations')
     .ilike('phone', `%${last9}`)
     .limit(1)
     .single();
+
+  // --- 4b. Fetch scheduling context for the agent ---
+  let schedulingContext = { availableSlots: '', patientUpcomingAppointments: '', businessHours: '', dentistList: '' };
+  try {
+    // Fetch active dentists
+    const { data: dentists } = await supabase
+      .from('dentists')
+      .select('id, name, specialty')
+      .eq('user_id', userId)
+      .eq('is_active', true)
+      .order('name');
+
+    if (dentists && dentists.length > 0) {
+      schedulingContext.dentistList = dentists.map(d => `${d.name}${d.specialty ? ` (${d.specialty})` : ''} [id:${d.id}]`).join('; ');
+
+      // Fetch business hours (schedule config) for next 3 days
+      const today = new Date();
+      const daysToCheck = [0, 1, 2].map(offset => {
+        const d = new Date(today);
+        d.setDate(d.getDate() + offset);
+        return d;
+      });
+
+      const hoursLines: string[] = [];
+      for (const day of daysToCheck) {
+        const dow = day.getDay();
+        const dateStr = day.toISOString().split('T')[0];
+        const { data: configs } = await supabase
+          .from('schedule_config')
+          .select('dentist_id, start_time, end_time, lunch_start, lunch_end, slot_duration_minutes')
+          .in('dentist_id', dentists.map(d => d.id))
+          .eq('day_of_week', dow)
+          .eq('is_active', true);
+
+        if (configs && configs.length > 0) {
+          for (const cfg of configs) {
+            const dentistName = dentists.find(d => d.id === cfg.dentist_id)?.name ?? '';
+            hoursLines.push(`${dateStr} (${['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'][dow]}) - ${dentistName}: ${cfg.start_time}-${cfg.end_time}${cfg.lunch_start ? ` (almoço ${cfg.lunch_start}-${cfg.lunch_end})` : ''}, slots de ${cfg.slot_duration_minutes}min`);
+          }
+        }
+      }
+      if (hoursLines.length > 0) schedulingContext.businessHours = hoursLines.join('\n');
+
+      // Fetch available slots for today and tomorrow for the first dentist
+      if (dentists[0]) {
+        const slotsLines: string[] = [];
+        for (const day of daysToCheck.slice(0, 2)) {
+          const dateStr = day.toISOString().split('T')[0];
+          const dow = day.getDay();
+          const { data: config } = await supabase
+            .from('schedule_config')
+            .select('start_time, end_time, lunch_start, lunch_end, slot_duration_minutes')
+            .eq('dentist_id', dentists[0].id)
+            .eq('day_of_week', dow)
+            .eq('is_active', true)
+            .single();
+
+          if (config) {
+            // Fetch existing appointments
+            const { data: existing } = await supabase
+              .from('appointments')
+              .select('start_time, end_time')
+              .eq('dentist_id', dentists[0].id)
+              .not('status', 'in', '("cancelled","rescheduled")')
+              .gte('start_time', `${dateStr}T00:00:00`)
+              .lte('start_time', `${dateStr}T23:59:59`);
+
+            const booked = (existing || []).map(a => `${new Date(a.start_time).toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'})}-${new Date(a.end_time).toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'})}`);
+            slotsLines.push(`${dateStr}: Horário ${config.start_time}-${config.end_time}, já ocupados: ${booked.length > 0 ? booked.join(', ') : 'nenhum'}`);
+          }
+        }
+        if (slotsLines.length > 0) schedulingContext.availableSlots = slotsLines.join('\n');
+      }
+
+      // Fetch patient upcoming appointments
+      if (patientData?.id) {
+        const { data: upcoming } = await supabase
+          .from('appointments')
+          .select('start_time, end_time, procedure, status, dentists(name)')
+          .eq('patient_id', patientData.id)
+          .not('status', 'in', '("cancelled","rescheduled")')
+          .gte('start_time', new Date().toISOString())
+          .order('start_time', { ascending: true })
+          .limit(3);
+
+        if (upcoming && upcoming.length > 0) {
+          schedulingContext.patientUpcomingAppointments = upcoming.map(a => {
+            const d = new Date(a.start_time);
+            const dentistName = (a.dentists as unknown as { name: string })?.name ?? '';
+            return `${d.toLocaleDateString('pt-BR')} ${d.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'})} - ${a.procedure || 'Consulta'} com ${dentistName} (${a.status})`;
+          }).join('; ');
+        }
+      }
+    }
+  } catch (err) {
+    console.error('process-incoming: scheduling context fetch error (non-fatal)', err);
+  }
 
   // --- 5. Fetch conversation history ---
   const { data: historyRows } = await supabase
@@ -128,10 +225,149 @@ export async function processIncomingMessage(
       patientCategory: patientData?.category ?? undefined,
       patientDentist: patientData?.dentist_name ?? undefined,
       patientObservations: patientData?.observations ?? undefined,
+      availableSlots: schedulingContext.availableSlots || undefined,
+      patientUpcomingAppointments: schedulingContext.patientUpcomingAppointments || undefined,
+      businessHours: schedulingContext.businessHours || undefined,
+      dentistList: schedulingContext.dentistList || undefined,
     });
   } catch (err) {
     console.error('process-incoming: generateAgentReply error', err);
     return 'error';
+  }
+
+  // --- 6b. Process booking/reschedule tags from AI reply ---
+  if (result.booking && patientData?.id) {
+    try {
+      // Check for conflicts before creating
+      const { data: conflicts } = await supabase
+        .from('appointments')
+        .select('id')
+        .eq('dentist_id', result.booking.dentist_id)
+        .not('status', 'in', '("cancelled","rescheduled")')
+        .lt('start_time', result.booking.end_time)
+        .gt('end_time', result.booking.start_time);
+
+      if (!conflicts || conflicts.length === 0) {
+        const { data: newAppt } = await supabase
+          .from('appointments')
+          .insert({
+            user_id: userId,
+            patient_id: patientData.id,
+            dentist_id: result.booking.dentist_id,
+            start_time: result.booking.start_time,
+            end_time: result.booking.end_time,
+            procedure: result.booking.procedure || null,
+            notes: result.booking.notes || null,
+            source: 'agent',
+            status: 'scheduled',
+          })
+          .select('id')
+          .single();
+
+        if (newAppt) {
+          // Create history entry
+          await supabase.from('appointment_history').insert({
+            appointment_id: newAppt.id,
+            to_status: 'scheduled',
+            changed_by: userId,
+            notes: 'Agendado automaticamente pelo agente IA',
+          });
+          // Create reminders
+          const apptStart = new Date(result.booking.start_time);
+          const now = new Date();
+          const reminders = [];
+          const r24h = new Date(apptStart.getTime() - 24 * 60 * 60 * 1000);
+          const r2h = new Date(apptStart.getTime() - 2 * 60 * 60 * 1000);
+          if (r24h > now) reminders.push({ appointment_id: newAppt.id, user_id: userId, reminder_type: '24h_before', scheduled_at: r24h.toISOString(), status: 'pending' });
+          if (r2h > now) reminders.push({ appointment_id: newAppt.id, user_id: userId, reminder_type: '2h_before', scheduled_at: r2h.toISOString(), status: 'pending' });
+          if (reminders.length > 0) await supabase.from('appointment_reminders').insert(reminders);
+        }
+      } else {
+        console.warn('process-incoming: booking conflict detected, appointment not created');
+      }
+    } catch (err) {
+      console.error('process-incoming: booking creation error (non-fatal)', err);
+    }
+  }
+
+  if (result.reschedule && patientData?.id) {
+    try {
+      // Fetch existing appointment
+      const { data: existingAppt } = await supabase
+        .from('appointments')
+        .select('id, status, dentist_id')
+        .eq('id', result.reschedule.appointment_id)
+        .eq('user_id', userId)
+        .single();
+
+      if (existingAppt) {
+        // Check conflicts for new time
+        const { data: conflicts } = await supabase
+          .from('appointments')
+          .select('id')
+          .eq('dentist_id', existingAppt.dentist_id)
+          .not('status', 'in', '("cancelled","rescheduled")')
+          .neq('id', existingAppt.id)
+          .lt('start_time', result.reschedule.new_end_time)
+          .gt('end_time', result.reschedule.new_start_time);
+
+        if (!conflicts || conflicts.length === 0) {
+          // Mark old as rescheduled
+          await supabase.from('appointments')
+            .update({ status: 'rescheduled', updated_at: new Date().toISOString() })
+            .eq('id', existingAppt.id);
+
+          await supabase.from('appointment_history').insert({
+            appointment_id: existingAppt.id,
+            from_status: existingAppt.status,
+            to_status: 'rescheduled',
+            changed_by: userId,
+            notes: 'Remarcado pelo agente IA',
+          });
+
+          // Cancel old reminders
+          await supabase.from('appointment_reminders')
+            .update({ status: 'cancelled' })
+            .eq('appointment_id', existingAppt.id)
+            .eq('status', 'pending');
+
+          // Create new appointment
+          const { data: newAppt } = await supabase
+            .from('appointments')
+            .insert({
+              user_id: userId,
+              patient_id: patientData.id,
+              dentist_id: existingAppt.dentist_id,
+              start_time: result.reschedule.new_start_time,
+              end_time: result.reschedule.new_end_time,
+              source: 'agent',
+              status: 'scheduled',
+              original_appointment_id: existingAppt.id,
+            })
+            .select('id')
+            .single();
+
+          if (newAppt) {
+            await supabase.from('appointment_history').insert({
+              appointment_id: newAppt.id,
+              to_status: 'scheduled',
+              changed_by: userId,
+              notes: `Remarcação da consulta ${existingAppt.id} pelo agente IA`,
+            });
+            const apptStart = new Date(result.reschedule.new_start_time);
+            const now = new Date();
+            const reminders = [];
+            const r24h = new Date(apptStart.getTime() - 24 * 60 * 60 * 1000);
+            const r2h = new Date(apptStart.getTime() - 2 * 60 * 60 * 1000);
+            if (r24h > now) reminders.push({ appointment_id: newAppt.id, user_id: userId, reminder_type: '24h_before', scheduled_at: r24h.toISOString(), status: 'pending' });
+            if (r2h > now) reminders.push({ appointment_id: newAppt.id, user_id: userId, reminder_type: '2h_before', scheduled_at: r2h.toISOString(), status: 'pending' });
+            if (reminders.length > 0) await supabase.from('appointment_reminders').insert(reminders);
+          }
+        }
+      }
+    } catch (err) {
+      console.error('process-incoming: reschedule error (non-fatal)', err);
+    }
   }
 
   // --- 7. Handle handoff request ---

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '../../../lib/supabase';
 import { validateAuthHeader, isAuthError } from '../../../lib/auth';
+import { parseBody, updateOpportunityNotesSchema } from '../../../lib/validators';
 
 export async function PATCH(
     request: NextRequest,
@@ -15,8 +16,9 @@ export async function PATCH(
 
         const { userId } = auth.data;
         const { id } = await context.params;
-        const body = await request.json();
-        const { notes } = body;
+        const parsed = await parseBody(request, updateOpportunityNotesSchema);
+        if (parsed.error) return parsed.error;
+        const { notes } = parsed.data;
 
         // Update only if opportunity belongs to this user
         const { error } = await supabase

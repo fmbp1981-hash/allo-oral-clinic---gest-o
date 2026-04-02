@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { NextResponse } from 'next/server';
+import { parseBody, updateSettingsSchema } from '../lib/validators';
 
 export async function GET() {
   try {
@@ -30,8 +31,9 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const { defaultRole, messageTemplate } = body;
+    const parsed = await parseBody(request, updateSettingsSchema);
+    if (parsed.error) return parsed.error;
+    const { defaultRole, messageTemplate } = parsed.data;
 
     // Upsert into app_settings (assuming id=1 for singleton settings)
     const { error } = await supabase

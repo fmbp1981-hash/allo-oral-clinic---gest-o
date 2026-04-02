@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateAuthHeader, isAuthError } from '../../../lib/auth';
 import { getSupabaseClient, isNotFoundError } from '../../../lib/supabase';
+import { parseBody, updateUserSchema } from '../../../lib/validators';
 
 interface RouteParams {
   params: Promise<{ userId: string }>;
@@ -111,17 +112,9 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const body = await request.json();
-    const { name, companyName, role } = body;
-
-    // Validar role
-    const validRoles = ['admin', 'operador', 'visualizador'];
-    if (role && !validRoles.includes(role)) {
-      return NextResponse.json(
-        { error: 'Role inválido. Use: admin, operador ou visualizador' },
-        { status: 400 }
-      );
-    }
+    const parsed = await parseBody(request, updateUserSchema);
+    if (parsed.error) return parsed.error;
+    const { name, companyName, role } = parsed.data;
 
     // Atualizar usuário
     const updateData: Record<string, string> = {

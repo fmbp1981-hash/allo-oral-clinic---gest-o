@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '../../lib/supabase';
+import { parseBody, requestPasswordResetSchema } from '../../lib/validators';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
 
@@ -24,14 +25,9 @@ interface UserRecord {
 
 export async function POST(request: NextRequest) {
   try {
-    const { email } = await request.json();
-
-    if (!email) {
-      return NextResponse.json(
-        { error: 'Email é obrigatório' },
-        { status: 400 }
-      );
-    }
+    const parsed = await parseBody(request, requestPasswordResetSchema);
+    if (parsed.error) return parsed.error;
+    const { email } = parsed.data;
 
     // Find user
     const { data, error } = await supabase

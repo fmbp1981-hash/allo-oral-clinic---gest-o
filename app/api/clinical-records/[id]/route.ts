@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateAuthHeader, isAuthError } from '../../lib/auth';
 import { getSupabaseClient } from '../../lib/supabase';
+import { parseBody, updateClinicalRecordSchema } from '../../lib/validators';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -70,7 +71,9 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     const { userId } = auth.data;
     const { id } = await params;
-    const body = await request.json();
+    const parsed = await parseBody(request, updateClinicalRecordSchema);
+    if (parsed.error) return parsed.error;
+    const body = parsed.data;
 
     const supabase = getSupabaseClient();
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { validateAuthHeader, isAuthError } from '../lib/auth';
 import { getSupabaseClient } from '../lib/supabase';
 import { personalizeMessage } from '@/app/lib/openai/personalize-message';
+import { parseBody, createCampaignSchema } from '../lib/validators';
 
 /**
  * GET /api/campaigns
@@ -42,19 +43,9 @@ export async function POST(request: NextRequest) {
   const { userId } = auth.data;
   const supabase = getSupabaseClient();
 
-  const body = await request.json() as {
-    name?: string;
-    patient_ids?: string[];
-    message_template?: string;
-  };
-
-  const { name, patient_ids, message_template } = body;
-  if (!name || !patient_ids?.length || !message_template) {
-    return NextResponse.json(
-      { error: 'name, patient_ids e message_template são obrigatórios' },
-      { status: 400 }
-    );
-  }
+  const parsed = await parseBody(request, createCampaignSchema);
+  if (parsed.error) return parsed.error;
+  const { name, patient_ids, message_template } = parsed.data;
 
   // Fetch patients for this user
   const { data: patients, error: pErr } = await supabase

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateAuthHeader, isAuthError } from '../lib/auth';
 import { getSupabaseClient } from '../lib/supabase';
+import { parseBody, createClinicalRecordSchema } from '../lib/validators';
+import { logAudit } from '../lib/audit';
 
 /**
  * GET /api/clinical-records
@@ -79,7 +81,8 @@ export async function POST(request: NextRequest) {
     }
 
     const { userId } = auth.data;
-    const body = await request.json();
+    const parsed = await parseBody(request, createClinicalRecordSchema);
+    if (parsed.error) return parsed.error;
     const {
       patientId,
       date,
@@ -91,14 +94,7 @@ export async function POST(request: NextRequest) {
       observations,
       dentistName,
       attachments,
-    } = body;
-
-    if (!patientId || !date || !description) {
-      return NextResponse.json(
-        { error: 'patientId, date e description são obrigatórios' },
-        { status: 400 }
-      );
-    }
+    } = parsed.data;
 
     const supabase = getSupabaseClient();
 
@@ -125,13 +121,13 @@ export async function POST(request: NextRequest) {
         user_id: userId,
         date: new Date(date).toISOString(),
         description,
-        type: type || 'consultation',
+        type,
         diagnosis: diagnosis || null,
         treatment: treatment || null,
         medications: medications || null,
         observations: observations || null,
         dentist_name: dentistName || null,
-        attachments: attachments || [],
+        attachments,
       })
       .select()
       .single();
@@ -143,6 +139,8 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
+
+    logAudit({ userId, action: 'clinical_record_create', entityType: 'clinical_record', entityId: record.id, details: { patientId }, request });
 
     return NextResponse.json(record, { status: 201 });
   } catch (error) {

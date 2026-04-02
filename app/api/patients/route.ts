@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '../lib/supabase';
 import { validateAuthHeader, isAuthError } from '../lib/auth';
+import { parseBody, createPatientSchema } from '../lib/validators';
+import { logAudit } from '../lib/audit';
 
 // GET /api/patients - Lista pacientes do usuário com filtros opcionais
 // Query params: category, dentist, search, page, limit
@@ -76,24 +78,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
-    const body = await request.json();
-    const { name, phone, email, history } = body;
-
-    if (!name || !name.trim()) {
-      return NextResponse.json(
-        { error: 'Nome é obrigatório' },
-        { status: 400 }
-      );
-    }
+    const parsed = await parseBody(request, createPatientSchema);
+    if (parsed.error) return parsed.error;
+    const { name, phone, email, history } = parsed.data;
 
     const { data, error } = await supabase
       .from('patients')
       .insert({
         user_id: auth.data.userId,
-        name: name.trim(),
-        phone: phone || '',
+        name,
+        phone,
         email: email || null,
-        history: history || [],
+        history,
       })
       .select()
       .single();

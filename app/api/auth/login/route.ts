@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '../../lib/supabase';
 import { config } from '../../lib/config';
+import { parseBody, loginSchema } from '../../lib/validators';
+import { logAudit } from '../../lib/audit';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
@@ -51,14 +53,9 @@ interface UserRecord {
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, password } = await request.json();
-
-    if (!email || !password) {
-      return NextResponse.json(
-        { error: 'Email e senha são obrigatórios' },
-        { status: 400 }
-      );
-    }
+    const parsed = await parseBody(request, loginSchema);
+    if (parsed.error) return parsed.error;
+    const { email, password } = parsed.data;
 
     // Find user by email
     const { data, error } = await supabase
@@ -79,6 +76,7 @@ export async function POST(request: NextRequest) {
     // Verify password
     const isValid = await bcrypt.compare(password, user.password);
     if (!isValid) {
+      logAudit({ userId: user.id, action: 'login_failed', entityType: 'user', entityId: user.id, details: { reason: 'invalid_password' }, request });
       return NextResponse.json(
         { error: 'Senha incorreta' },
         { status: 401 }
@@ -106,6 +104,8 @@ export async function POST(request: NextRequest) {
 
     // Remove sensitive data from response
     const { password: _pwd, refresh_token_hash: _hash, ...safeUser } = user;
+
+    logAudit({ userId: user.id, action: 'login', entityType: 'user', entityId: user.id, request });
 
     return NextResponse.json({
       user: safeUser,

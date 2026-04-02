@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '../../../lib/supabase';
 import { validateAuthHeader, isAuthError } from '../../../lib/auth';
+import { parseBody, updateOpportunityStatusSchema } from '../../../lib/validators';
+import { logAudit } from '../../../lib/audit';
 
 export async function PATCH(
     request: NextRequest,
@@ -15,8 +17,9 @@ export async function PATCH(
 
         const { userId } = auth.data;
         const { id } = await context.params;
-        const body = await request.json();
-        const { status, scheduledDate } = body;
+        const parsed = await parseBody(request, updateOpportunityStatusSchema);
+        if (parsed.error) return parsed.error;
+        const { status, scheduledDate } = parsed.data;
 
         console.log(`Updating opportunity ${id} to status: ${status} for user ${userId}`);
 
@@ -43,6 +46,7 @@ export async function PATCH(
         }
 
         console.log(`Successfully updated opportunity ${id}`);
+        logAudit({ userId, action: 'opportunity_update', entityType: 'opportunity', entityId: id, details: { status }, request });
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error('Internal error updating status:', error);

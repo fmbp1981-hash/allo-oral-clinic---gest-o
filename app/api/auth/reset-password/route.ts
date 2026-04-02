@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '../../lib/supabase';
+import { parseBody, resetPasswordSchema } from '../../lib/validators';
+import { logAudit } from '../../lib/audit';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 
@@ -11,21 +13,9 @@ interface UserRecord {
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, token, newPassword } = await request.json();
-
-    if (!email || !token || !newPassword) {
-      return NextResponse.json(
-        { error: 'Email, token e nova senha são obrigatórios' },
-        { status: 400 }
-      );
-    }
-
-    if (newPassword.length < 6) {
-      return NextResponse.json(
-        { error: 'A senha deve ter pelo menos 6 caracteres' },
-        { status: 400 }
-      );
-    }
+    const parsed = await parseBody(request, resetPasswordSchema);
+    if (parsed.error) return parsed.error;
+    const { email, token, newPassword } = parsed.data;
 
     // Hash the token to compare with database
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');

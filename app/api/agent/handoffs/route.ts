@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateAuthHeader, isAuthError } from '../../lib/auth';
 import { getSupabaseClient } from '../../lib/supabase';
+import { parseBody, handleHandoffSchema } from '../../lib/validators';
 
 /**
  * GET /api/agent/handoffs
@@ -42,12 +43,9 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
-  const body = await request.json();
-  const { handoffId, action } = body;
-
-  if (!handoffId || !['accept', 'reject'].includes(action)) {
-    return NextResponse.json({ error: 'handoffId e action (accept|reject) são obrigatórios' }, { status: 400 });
-  }
+  const parsed = await parseBody(request, handleHandoffSchema);
+  if (parsed.error) return parsed.error;
+  const { handoffId, action } = parsed.data;
 
   const supabase = getSupabaseClient();
 

@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateAuthHeader, isAuthError } from '../../../../lib/auth';
 import { getSupabaseClient } from '../../../../lib/supabase';
-
-type ConversationStatus = 'active' | 'escalated' | 'closed';
-const VALID_STATUSES: ConversationStatus[] = ['active', 'escalated', 'closed'];
+import { parseBody, updateConversationStatusSchema } from '../../../../lib/validators';
 
 /**
  * PUT /api/agent/conversations/[id]/status
@@ -19,15 +17,9 @@ export async function PUT(
   }
 
   const { id } = await params;
-  const body = await request.json();
-  const status = body.status as string;
-
-  if (!VALID_STATUSES.includes(status as ConversationStatus)) {
-    return NextResponse.json(
-      { error: `Status inválido. Valores aceitos: ${VALID_STATUSES.join(', ')}` },
-      { status: 400 }
-    );
-  }
+  const parsed = await parseBody(request, updateConversationStatusSchema);
+  if (parsed.error) return parsed.error;
+  const { status } = parsed.data;
 
   const supabase = getSupabaseClient();
 

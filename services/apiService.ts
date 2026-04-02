@@ -1,4 +1,7 @@
-import { Opportunity, OpportunityStatus, Patient, User, Notification, AppSettings } from '../types';
+import {
+  Opportunity, OpportunityStatus, Patient, User, Notification, AppSettings,
+  Dentist, Appointment, AppointmentStatus, ScheduleConfig, ScheduleBlock, AvailableSlot,
+} from '../types';
 
 const normalizeApiBase = (raw?: string): string => {
   const value = (raw ?? '').trim();
@@ -42,9 +45,9 @@ const getAuthToken = (): string | null => {
 // Helper function to make authenticated requests
 const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
   const token = getAuthToken();
-  const headers: HeadersInit = {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...options.headers,
+    ...(options.headers as Record<string, string>),
   };
 
   if (token) {
@@ -551,3 +554,123 @@ export const importPatientsFromFile = async (patients: any[]): Promise<{
   }
 };
 
+// --- Dentist Functions ---
+
+export const getDentists = async (activeOnly = true): Promise<Dentist[]> => {
+  const params = activeOnly ? '' : '?active=false';
+  const data = await fetchWithAuth(`/dentists${params}`);
+  return data.dentists ?? [];
+};
+
+export const createDentist = async (dentist: Partial<Dentist>): Promise<Dentist> => {
+  const data = await fetchWithAuth('/dentists', {
+    method: 'POST',
+    body: JSON.stringify(dentist),
+  });
+  return data.dentist;
+};
+
+export const updateDentist = async (id: string, updates: Partial<Dentist>): Promise<Dentist> => {
+  const data = await fetchWithAuth(`/dentists/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(updates),
+  });
+  return data.dentist;
+};
+
+// --- Schedule Config Functions ---
+
+export const getScheduleConfig = async (dentistId: string): Promise<ScheduleConfig[]> => {
+  const data = await fetchWithAuth(`/dentists/${dentistId}/schedule`);
+  return data.schedule ?? [];
+};
+
+export const saveScheduleConfig = async (dentistId: string, configs: Partial<ScheduleConfig>[]): Promise<ScheduleConfig[]> => {
+  const data = await fetchWithAuth(`/dentists/${dentistId}/schedule`, {
+    method: 'PUT',
+    body: JSON.stringify({ days: configs }),
+  });
+  return data.schedule ?? [];
+};
+
+// --- Appointment Functions ---
+
+export const getAppointments = async (params: {
+  from?: string;
+  to?: string;
+  dentist_id?: string;
+  status?: AppointmentStatus;
+  patient_id?: string;
+}): Promise<Appointment[]> => {
+  const searchParams = new URLSearchParams();
+  if (params.from) searchParams.set('from', params.from);
+  if (params.to) searchParams.set('to', params.to);
+  if (params.dentist_id) searchParams.set('dentist_id', params.dentist_id);
+  if (params.status) searchParams.set('status', params.status);
+  if (params.patient_id) searchParams.set('patient_id', params.patient_id);
+
+  const data = await fetchWithAuth(`/appointments?${searchParams}`);
+  return data.appointments ?? [];
+};
+
+export const createAppointment = async (appointment: {
+  patient_id: string;
+  dentist_id: string;
+  start_time: string;
+  end_time: string;
+  procedure?: string;
+  notes?: string;
+  source?: string;
+}): Promise<Appointment> => {
+  const data = await fetchWithAuth('/appointments', {
+    method: 'POST',
+    body: JSON.stringify(appointment),
+  });
+  return data.appointment;
+};
+
+export const updateAppointment = async (id: string, updates: Partial<Appointment> & { cancellation_reason?: string }): Promise<Appointment> => {
+  const data = await fetchWithAuth(`/appointments/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(updates),
+  });
+  return data.appointment;
+};
+
+export const cancelAppointment = async (id: string, reason?: string): Promise<void> => {
+  await fetchWithAuth(`/appointments/${id}`, {
+    method: 'DELETE',
+    body: JSON.stringify({ reason: reason || 'Cancelado pelo usuário' }),
+  });
+};
+
+export const getAvailableSlots = async (dentistId: string, date: string, durationMinutes?: number): Promise<AvailableSlot[]> => {
+  const params = new URLSearchParams({ dentist_id: dentistId, date });
+  if (durationMinutes) params.set('duration_minutes', String(durationMinutes));
+  const data = await fetchWithAuth(`/appointments/available-slots?${params}`);
+  return data.slots ?? [];
+};
+
+// --- Schedule Block Functions ---
+
+export const getScheduleBlocks = async (from?: string, to?: string): Promise<ScheduleBlock[]> => {
+  const params = new URLSearchParams();
+  if (from) params.set('from', from);
+  if (to) params.set('to', to);
+  const data = await fetchWithAuth(`/schedule-blocks?${params}`);
+  return data.blocks ?? [];
+};
+
+export const createScheduleBlock = async (block: {
+  dentist_id?: string;
+  title: string;
+  start_datetime: string;
+  end_datetime: string;
+  all_day?: boolean;
+}): Promise<ScheduleBlock> => {
+  const data = await fetchWithAuth('/schedule-blocks', {
+    method: 'POST',
+    body: JSON.stringify(block),
+  });
+  return data.block;
+};

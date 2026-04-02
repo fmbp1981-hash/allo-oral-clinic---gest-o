@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '../../lib/supabase';
 import { config } from '../../lib/config';
+import { parseBody, registerSchema } from '../../lib/validators';
+import { logAudit } from '../../lib/audit';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
@@ -43,14 +45,9 @@ interface UserRecord {
 
 export async function POST(request: NextRequest) {
   try {
-    const { name, email, password, clinicName, avatarUrl } = await request.json();
-
-    if (!name || !email || !password) {
-      return NextResponse.json(
-        { error: 'Nome, email e senha são obrigatórios' },
-        { status: 400 }
-      );
-    }
+    const parsed = await parseBody(request, registerSchema);
+    if (parsed.error) return parsed.error;
+    const { name, email, password, clinicName, avatarUrl } = parsed.data;
 
     // Check if user already exists
     const { data: existingUser } = await supabase
@@ -108,6 +105,8 @@ export async function POST(request: NextRequest) {
 
     // Remove sensitive data
     const { password: _pwd, ...safeUser } = user;
+
+    logAudit({ userId: user.id, action: 'register', entityType: 'user', entityId: user.id, request });
 
     return NextResponse.json({
       user: safeUser,

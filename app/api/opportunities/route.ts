@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '../lib/supabase';
 import { validateAuthHeader, isAuthError } from '../lib/auth';
+import { parseBody, createOpportunitySchema } from '../lib/validators';
+import { logAudit } from '../lib/audit';
 
 export async function GET(request: NextRequest) {
     try {
@@ -53,24 +55,20 @@ export async function POST(request: NextRequest) {
         }
 
         const { userId } = auth.data;
-        const body = await request.json();
-
-        // Validate required fields
-        if (!body.patientId || !body.status) {
-            return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
-        }
+        const parsed = await parseBody(request, createOpportunitySchema);
+        if (parsed.error) return parsed.error;
+        const { patientId, status, name, phone, keywordFound, notes, scheduledDate } = parsed.data;
 
         // Transform camelCase to snake_case for Supabase
-        // Note: clinical_records is a separate table, not a column
         const dbPayload = {
-            patient_id: body.patientId,
-            name: body.name,
-            phone: body.phone,
-            status: body.status,
-            keyword_found: body.keywordFound,
-            notes: body.notes,
-            scheduled_date: body.scheduledDate,
-            user_id: userId  // Required for multi-tenancy
+            patient_id: patientId,
+            name,
+            phone,
+            status,
+            keyword_found: keywordFound,
+            notes,
+            scheduled_date: scheduledDate,
+            user_id: userId
         };
 
         const { data, error } = await supabase
@@ -93,6 +91,8 @@ export async function POST(request: NextRequest) {
             lastContact: data.last_contact,
             scheduledDate: data.scheduled_date
         };
+
+        logAudit({ userId, action: 'opportunity_create', entityType: 'opportunity', entityId: data.id, details: { status: data.status }, request });
 
         return NextResponse.json(formatted);
     } catch (err) {

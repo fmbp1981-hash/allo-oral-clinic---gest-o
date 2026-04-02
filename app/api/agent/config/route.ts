@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateAuthHeader, isAuthError } from '../../lib/auth';
 import { getSupabaseClient } from '../../lib/supabase';
+import { parseBody, updateAgentConfigSchema } from '../../lib/validators';
 
 export interface AgentConfig {
   enabled: boolean;
@@ -68,7 +69,9 @@ export async function PUT(request: NextRequest) {
   const { userId } = auth.data;
   const supabase = getSupabaseClient();
 
-  const body = await request.json() as Partial<AgentConfig>;
+  const parsed = await parseBody(request, updateAgentConfigSchema);
+  if (parsed.error) return parsed.error;
+  const body = parsed.data;
 
   // Merge with existing config
   const { data: existing } = await supabase

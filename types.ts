@@ -117,3 +117,121 @@ export interface HandoffRequest {
     patients?: { name: string } | null;
   };
 }
+
+// --- Appointment Scheduling Types ---
+
+export type AppointmentStatus =
+  | 'scheduled'
+  | 'confirmed'
+  | 'in_progress'
+  | 'completed'
+  | 'cancelled'
+  | 'no_show'
+  | 'rescheduled';
+
+export type AppointmentSource = 'manual' | 'agent' | 'online';
+
+export interface Dentist {
+  id: string;
+  user_id: string;
+  name: string;
+  specialty?: string;
+  crm?: string;
+  color: string;
+  phone?: string;
+  email?: string;
+  is_active: boolean;
+  avatar_url?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ScheduleConfig {
+  id: string;
+  dentist_id: string;
+  day_of_week: number; // 0=Dom, 1=Seg, ..., 6=Sáb
+  start_time: string;  // HH:MM
+  end_time: string;
+  lunch_start?: string;
+  lunch_end?: string;
+  slot_duration_minutes: number;
+  is_active: boolean;
+}
+
+export interface ScheduleBlock {
+  id: string;
+  user_id: string;
+  dentist_id?: string;
+  title: string;
+  start_datetime: string;
+  end_datetime: string;
+  all_day: boolean;
+  source: string;
+  created_at: string;
+}
+
+export interface Appointment {
+  id: string;
+  user_id: string;
+  patient_id: string;
+  dentist_id: string;
+  procedure?: string;
+  start_time: string;
+  end_time: string;
+  status: AppointmentStatus;
+  notes?: string;
+  cancellation_reason?: string;
+  source: AppointmentSource;
+  original_appointment_id?: string;
+  reminder_sent: boolean;
+  created_at: string;
+  updated_at: string;
+  // Joined relations
+  patients?: { id: string; name: string; phone: string } | null;
+  dentists?: { id: string; name: string; specialty?: string; color: string } | null;
+}
+
+export interface AppointmentHistory {
+  id: string;
+  appointment_id: string;
+  from_status?: string;
+  to_status: string;
+  changed_by: string;
+  notes?: string;
+  created_at: string;
+}
+
+export interface AppointmentReminder {
+  id: string;
+  appointment_id: string;
+  user_id: string;
+  reminder_type: '24h_before' | '2h_before' | 'custom';
+  scheduled_at: string;
+  message_template?: string;
+  status: 'pending' | 'sent' | 'failed' | 'cancelled';
+  sent_at?: string;
+  created_at: string;
+}
+
+export interface AvailableSlot {
+  date: string;       // YYYY-MM-DD
+  start_time: string; // HH:MM
+  end_time: string;
+  dentist_id: string;
+  dentist_name: string;
+  dentist_color: string;
+}
+
+export interface CalendarIntegration {
+  id: string;
+  user_id: string;
+  dentist_id: string;
+  provider: 'google_calendar' | 'ical_url';
+  calendar_id: string;
+  sync_enabled: boolean;
+  last_synced_at?: string;
+  sync_interval_minutes: number;
+  created_at: string;
+}
+
+export type CalendarView = 'day' | 'week' | 'month';

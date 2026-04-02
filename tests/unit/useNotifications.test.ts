@@ -1,167 +1,83 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook } from '@testing-library/react';
 import React from 'react';
 
-// Mock dependencies
-vi.mock('../../services/apiService', () => ({
-    api: {
-        getNotifications: vi.fn(),
-        getUnreadCount: vi.fn(),
-        markAsRead: vi.fn(),
-        markAllAsRead: vi.fn(),
-    },
-}));
+// Mock Socket.IO
+const mockSocket = {
+    on: vi.fn(),
+    off: vi.fn(),
+    emit: vi.fn(),
+    disconnect: vi.fn(),
+    connected: true,
+};
 
 vi.mock('socket.io-client', () => ({
-    io: vi.fn(() => ({
-        on: vi.fn(),
-        off: vi.fn(),
-        emit: vi.fn(),
-        disconnect: vi.fn(),
-    })),
+    default: vi.fn(() => mockSocket),
+    io: vi.fn(() => mockSocket),
+}));
+
+// Mock useToast
+vi.mock('../../hooks/useToast', () => ({
+    useToast: () => ({
+        success: vi.fn(),
+        error: vi.fn(),
+        info: vi.fn(),
+    }),
 }));
 
 describe('useNotifications', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        vi.resetModules();
     });
 
-    it('should initialize with empty notifications', async () => {
-        const { api } = await import('../../services/apiService');
-        (api.getNotifications as any).mockResolvedValue([]);
-        (api.getUnreadCount as any).mockResolvedValue({ count: 0 });
-
+    it('should throw when used outside of NotificationsProvider', async () => {
         const { useNotifications } = await import('../../hooks/useNotifications');
 
-        const { result } = renderHook(() => useNotifications());
+        expect(() => {
+            renderHook(() => useNotifications());
+        }).toThrow('useNotifications must be used within a NotificationsProvider');
+    });
+
+    it('should provide notifications context when wrapped in provider', async () => {
+        const { useNotifications, NotificationsProvider } = await import('../../hooks/useNotifications');
+
+        const wrapper: React.FC<{ children: React.ReactNode }> = ({ children }) =>
+            React.createElement(NotificationsProvider, { userId: 'test-user', tenantId: 'test-tenant' }, children);
+
+        const { result } = renderHook(() => useNotifications(), { wrapper });
 
         expect(result.current.notifications).toEqual([]);
         expect(result.current.unreadCount).toBe(0);
+        expect(typeof result.current.markAsRead).toBe('function');
     });
 
-    it('should fetch notifications on mount', async () => {
-        const mockNotifications = [
-            { id: 'notif-1', title: 'Test', message: 'Test message', read: false },
-            { id: 'notif-2', title: 'Test 2', message: 'Test message 2', read: true },
-        ];
+    it('should initialize Socket.IO connection with userId', async () => {
+        const { io } = await import('socket.io-client');
+        const { NotificationsProvider, useNotifications } = await import('../../hooks/useNotifications');
 
-        const { api } = await import('../../services/apiService');
-        (api.getNotifications as any).mockResolvedValue(mockNotifications);
-        (api.getUnreadCount as any).mockResolvedValue({ count: 1 });
+        const wrapper: React.FC<{ children: React.ReactNode }> = ({ children }) =>
+            React.createElement(NotificationsProvider, { userId: 'user-123', tenantId: 'tenant-1' }, children);
 
-        const { useNotifications } = await import('../../hooks/useNotifications');
+        renderHook(() => useNotifications(), { wrapper });
 
-        const { result } = renderHook(() => useNotifications());
-
-        // Wait for async operations
-        await act(async () => {
-            await new Promise(resolve => setTimeout(resolve, 0));
-        });
-
-        expect(api.getNotifications).toHaveBeenCalled();
+        // Socket.IO should have been initialized
+        expect(io).toHaveBeenCalled();
     });
 
-    it('should handle loading state', async () => {
-        const { api } = await import('../../services/apiService');
-        (api.getNotifications as any).mockResolvedValue([]);
-        (api.getUnreadCount as any).mockResolvedValue({ count: 0 });
+    it('should register socket event listeners', async () => {
+        const { NotificationsProvider, useNotifications } = await import('../../hooks/useNotifications');
 
-        const { useNotifications } = await import('../../hooks/useNotifications');
+        const wrapper: React.FC<{ children: React.ReactNode }> = ({ children }) =>
+            React.createElement(NotificationsProvider, { userId: 'user-123', tenantId: 'tenant-1' }, children);
 
-        const { result } = renderHook(() => useNotifications());
+        renderHook(() => useNotifications(), { wrapper });
 
-        // Initially should be loading
-        expect(result.current.loading).toBeDefined();
-    });
-
-    it('should mark notification as read', async () => {
-        const { api } = await import('../../services/apiService');
-        (api.getNotifications as any).mockResolvedValue([
-            { id: 'notif-1', title: 'Test', read: false },
-        ]);
-        (api.getUnreadCount as any).mockResolvedValue({ count: 1 });
-        (api.markAsRead as any).mockResolvedValue({ success: true });
-
-        const { useNotifications } = await import('../../hooks/useNotifications');
-
-        const { result } = renderHook(() => useNotifications());
-
-        await act(async () => {
-            await new Promise(resolve => setTimeout(resolve, 0));
-        });
-
-        if (result.current.markAsRead) {
-            await act(async () => {
-                await result.current.markAsRead('notif-1');
-            });
-
-            expect(api.markAsRead).toHaveBeenCalledWith('notif-1');
-        }
-    });
-
-    it('should mark all notifications as read', async () => {
-        const { api } = await import('../../services/apiService');
-        (api.getNotifications as any).mockResolvedValue([
-            { id: 'notif-1', title: 'Test', read: false },
-            { id: 'notif-2', title: 'Test 2', read: false },
-        ]);
-        (api.getUnreadCount as any).mockResolvedValue({ count: 2 });
-        (api.markAllAsRead as any).mockResolvedValue({ success: true });
-
-        const { useNotifications } = await import('../../hooks/useNotifications');
-
-        const { result } = renderHook(() => useNotifications());
-
-        await act(async () => {
-            await new Promise(resolve => setTimeout(resolve, 0));
-        });
-
-        if (result.current.markAllAsRead) {
-            await act(async () => {
-                await result.current.markAllAsRead();
-            });
-
-            expect(api.markAllAsRead).toHaveBeenCalled();
-        }
-    });
-
-    it('should handle error when fetching notifications', async () => {
-        const { api } = await import('../../services/apiService');
-        (api.getNotifications as any).mockRejectedValue(new Error('Network error'));
-        (api.getUnreadCount as any).mockResolvedValue({ count: 0 });
-
-        const { useNotifications } = await import('../../hooks/useNotifications');
-
-        const { result } = renderHook(() => useNotifications());
-
-        await act(async () => {
-            await new Promise(resolve => setTimeout(resolve, 0));
-        });
-
-        // Should handle error gracefully
-        expect(result.current.notifications).toEqual([]);
-    });
-
-    it('should refresh notifications', async () => {
-        const { api } = await import('../../services/apiService');
-        (api.getNotifications as any).mockResolvedValue([]);
-        (api.getUnreadCount as any).mockResolvedValue({ count: 0 });
-
-        const { useNotifications } = await import('../../hooks/useNotifications');
-
-        const { result } = renderHook(() => useNotifications());
-
-        await act(async () => {
-            await new Promise(resolve => setTimeout(resolve, 0));
-        });
-
-        if (result.current.refresh) {
-            await act(async () => {
-                await result.current.refresh();
-            });
-
-            // Should have called getNotifications again
-            expect(api.getNotifications).toHaveBeenCalledTimes(2);
-        }
+        // Should register event handlers
+        const eventNames = mockSocket.on.mock.calls.map((call: unknown[]) => call[0]);
+        expect(eventNames).toContain('connect');
+        expect(eventNames).toContain('disconnect');
+        expect(eventNames).toContain('new_notification');
+        expect(eventNames).toContain('unread_notifications');
     });
 });

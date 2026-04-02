@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateAuthHeader, isAuthError } from '../../../../lib/auth';
 import { getSupabaseClient } from '../../../../lib/supabase';
+import { parseBody, approveUserSchema } from '../../../../lib/validators';
 
 interface RouteParams {
     params: Promise<{ userId: string }>;
@@ -34,14 +35,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             );
         }
 
-        const { approved } = await request.json();
-
-        if (typeof approved !== 'boolean') {
-            return NextResponse.json(
-                { error: 'Campo approved é obrigatório e deve ser boolean' },
-                { status: 400 }
-            );
-        }
+        const parsed = await parseBody(request, approveUserSchema);
+        if (parsed.error) return parsed.error;
+        const { approved } = parsed.data;
 
         // Update user approval status
         const { data, error } = await supabase

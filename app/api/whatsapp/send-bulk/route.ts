@@ -1,17 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateAuthHeader, isAuthError } from '../../lib/auth';
 import { getSupabaseClient } from '../../lib/supabase';
-
-interface SendBulkRequest {
-  recipients: Array<{
-    id: string;
-    name: string;
-    phone: string;
-  }>;
-  templateId?: string;
-  customMessage?: string;
-  templateVariables?: Record<string, string>;
-}
+import { parseBody, sendBulkSchema } from '../../lib/validators';
 
 interface WhatsAppConfig {
   provider: 'evolution' | 'zapi' | 'business_cloud';
@@ -73,15 +63,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body: SendBulkRequest = await request.json();
-    const { recipients, templateId, customMessage, templateVariables } = body;
-
-    if (!recipients || recipients.length === 0) {
-      return NextResponse.json(
-        { error: 'Nenhum destinatário selecionado' },
-        { status: 400 }
-      );
-    }
+    const parsed = await parseBody(request, sendBulkSchema);
+    if (parsed.error) return parsed.error;
+    const { recipients, templateId, customMessage, templateVariables } = parsed.data;
 
     // Buscar template se especificado
     let messageTemplate = customMessage || '';

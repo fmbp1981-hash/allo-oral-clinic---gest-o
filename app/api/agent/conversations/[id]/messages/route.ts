@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateAuthHeader, isAuthError } from '../../../../lib/auth';
 import { getSupabaseClient } from '../../../../lib/supabase';
+import { parseBody, createMessageSchema } from '../../../../lib/validators';
 import { createProvider, WhatsAppSettings } from '@/app/lib/whatsapp/provider-factory';
 import { sendTextMessage } from '@/app/lib/whatsapp/send-message';
 
@@ -71,12 +72,9 @@ export async function POST(
   }
 
   const { id } = await params;
-  const body = await request.json();
-  const content = typeof body.content === 'string' ? body.content.trim() : '';
-
-  if (!content || content.length > 4000) {
-    return NextResponse.json({ error: 'Conteúdo inválido (1-4000 caracteres)' }, { status: 400 });
-  }
+  const parsed = await parseBody(request, createMessageSchema);
+  if (parsed.error) return parsed.error;
+  const { content } = parsed.data;
 
   const supabase = getSupabaseClient();
 

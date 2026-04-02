@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { validateAuthHeader, isAuthError } from '../../lib/auth';
 import { personalizeMessage } from '@/app/lib/openai/personalize-message';
 import { getSupabaseClient } from '../../lib/supabase';
+import { parseBody, campaignPreviewSchema } from '../../lib/validators';
 
 /**
  * POST /api/campaigns/preview
@@ -14,17 +15,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
-  const body = await request.json();
-  const patientIds: string[] = body.patient_ids ?? [];
-  const messageTemplate: string = body.message_template ?? '';
-  const sampleSize = Math.min(body.sample_size ?? 3, 5); // Max 5 previews
-
-  if (!messageTemplate.trim()) {
-    return NextResponse.json({ error: 'Template de mensagem é obrigatório' }, { status: 400 });
-  }
-  if (patientIds.length === 0) {
-    return NextResponse.json({ error: 'Selecione pelo menos 1 paciente' }, { status: 400 });
-  }
+  const parsed = await parseBody(request, campaignPreviewSchema);
+  if (parsed.error) return parsed.error;
+  const { patient_ids: patientIds, message_template: messageTemplate, sample_size: sampleSize } = parsed.data;
 
   const supabase = getSupabaseClient();
 

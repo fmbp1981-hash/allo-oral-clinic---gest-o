@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateAuthHeader, isAuthError } from '../lib/auth';
 import { getSupabaseClient } from '../lib/supabase';
+import { parseBody, updateUserSettingsSchema } from '../lib/validators';
 
 /**
  * GET /api/user-settings
@@ -83,7 +84,9 @@ export async function POST(request: NextRequest) {
 
         const { userId } = auth.data;
         const supabase = getSupabaseClient();
-        const body = await request.json();
+        const parsed = await parseBody(request, updateUserSettingsSchema);
+        if (parsed.error) return parsed.error;
+        const body = parsed.data;
 
         // Map camelCase to snake_case for database
         const dbPayload = {

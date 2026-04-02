@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, Search, Filter, Send, Loader2, Check, Users, MessageSquare } from 'lucide-react';
+import { X, Search, Filter, Send, Loader2, Check, Users, MessageSquare, Eye } from 'lucide-react';
 
 interface Patient {
   id: string;
@@ -25,8 +25,8 @@ interface CampaignWizardProps {
 const PAGE_SIZE = 50;
 
 export function CampaignWizard({ isOpen, onClose, onSuccess }: CampaignWizardProps) {
-  // Step 1: patient selection; Step 2: message template; Step 3: sending
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  // Step 1: patient selection; Step 2: message template; Step 3: preview; Step 4: sending
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
 
   // Patient list state
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -48,6 +48,11 @@ export function CampaignWizard({ isOpen, onClose, onSuccess }: CampaignWizardPro
   const [sendProgress, setSendProgress] = useState({ sent: 0, failed: 0 });
   const [completed, setCompleted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Preview state
+  interface PreviewItem { patientId: string; patientName: string; phone: string; personalized: string; error?: boolean }
+  const [previews, setPreviews] = useState<PreviewItem[]>([]);
+  const [loadingPreview, setLoadingPreview] = useState(false);
 
   const authHeader = useCallback(() => {
     const token = localStorage.getItem('auth_token');
@@ -121,7 +126,7 @@ export function CampaignWizard({ isOpen, onClose, onSuccess }: CampaignWizardPro
       }
       const campaign = await res.json() as { id: string };
       setCampaignId(campaign.id);
-      setStep(3);
+      setStep(4);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao criar campanha');
     } finally {
@@ -173,6 +178,7 @@ export function CampaignWizard({ isOpen, onClose, onSuccess }: CampaignWizardPro
     setCompleted(false);
     setError(null);
     setSendProgress({ sent: 0, failed: 0 });
+    setPreviews([]);
     onClose();
   }
 
@@ -197,7 +203,8 @@ export function CampaignWizard({ isOpen, onClose, onSuccess }: CampaignWizardPro
           {[
             { n: 1, label: 'Selecionar Pacientes' },
             { n: 2, label: 'Mensagem' },
-            { n: 3, label: 'Enviar' },
+            { n: 3, label: 'Preview' },
+            { n: 4, label: 'Enviar' },
           ].map(({ n, label }) => (
             <div key={n} className={`flex items-center gap-1.5 text-xs ${step === n ? 'text-indigo-600 font-semibold' : 'text-gray-400'}`}>
               <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs ${step === n ? 'bg-indigo-600 text-white' : step > n ? 'bg-green-500 text-white' : 'bg-gray-200 dark:bg-gray-700'}`}>
@@ -318,8 +325,66 @@ export function CampaignWizard({ isOpen, onClose, onSuccess }: CampaignWizardPro
             </div>
           )}
 
-          {/* STEP 3: Send */}
+          {/* STEP 3: Preview */}
           {step === 3 && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2">
+                  <Eye size={16} className="text-indigo-500" />
+                  Pré-visualização da IA
+                </h4>
+                {!loadingPreview && previews.length > 0 && (
+                  <button
+                    onClick={async () => {
+                      setLoadingPreview(true);
+                      try {
+                        const res = await fetch('/api/campaigns/preview', {
+                          method: 'POST',
+                          headers: authHeader(),
+                          body: JSON.stringify({ patient_ids: Array.from(selectedIds), message_template: messageTemplate, sample_size: 3 }),
+                        });
+                        const data = await res.json();
+                        setPreviews(data.previews ?? []);
+                      } catch { setError('Erro ao gerar preview'); } finally { setLoadingPreview(false); }
+                    }}
+                    className="text-xs text-indigo-600 hover:underline"
+                  >
+                    Gerar novamente
+                  </button>
+                )}
+              </div>
+
+              {loadingPreview ? (
+                <div className="flex items-center justify-center py-12 text-gray-400">
+                  <Loader2 size={24} className="animate-spin mr-2" />
+                  Gerando mensagens com IA...
+                </div>
+              ) : previews.length === 0 ? (
+                <div className="text-center py-8 text-gray-400 text-sm">Clique &quot;Gerar Preview&quot; para visualizar</div>
+              ) : (
+                <div className="space-y-3">
+                  {previews.map((p) => (
+                    <div key={p.patientId} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-sm font-medium text-gray-800 dark:text-gray-200">{p.patientName}</span>
+                        <span className="text-xs text-gray-400">{p.phone}</span>
+                        {p.error && <span className="text-xs text-amber-500">(fallback)</span>}
+                      </div>
+                      <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3">
+                        <p className="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap">{p.personalized}</p>
+                      </div>
+                    </div>
+                  ))}
+                  <p className="text-xs text-gray-400 text-center">
+                    Mostrando {previews.length} de {selectedIds.size} mensagens. Cada paciente receberá uma mensagem personalizada única.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* STEP 4: Send */}
+          {step === 4 && (
             <div className="space-y-4 text-center py-6">
               {completed ? (
                 <>
@@ -374,7 +439,7 @@ export function CampaignWizard({ isOpen, onClose, onSuccess }: CampaignWizardPro
         {/* Footer */}
         <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-700 flex justify-between shrink-0">
           <button
-            onClick={() => step > 1 && !sending && setStep((s) => (s - 1) as 1 | 2 | 3)}
+            onClick={() => step > 1 && !sending && setStep((s) => (s - 1) as 1 | 2 | 3 | 4)}
             disabled={step === 1 || sending}
             className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg disabled:opacity-40"
           >
@@ -393,15 +458,39 @@ export function CampaignWizard({ isOpen, onClose, onSuccess }: CampaignWizardPro
 
           {step === 2 && (
             <button
+              onClick={async () => {
+                if (!campaignName.trim()) { setError('Nome da campanha é obrigatório'); return; }
+                setLoadingPreview(true);
+                setError(null);
+                setStep(3);
+                try {
+                  const res = await fetch('/api/campaigns/preview', {
+                    method: 'POST',
+                    headers: authHeader(),
+                    body: JSON.stringify({ patient_ids: Array.from(selectedIds), message_template: messageTemplate, sample_size: 3 }),
+                  });
+                  const data = await res.json();
+                  setPreviews(data.previews ?? []);
+                } catch { setError('Erro ao gerar preview'); } finally { setLoadingPreview(false); }
+              }}
+              disabled={!campaignName.trim()}
+              className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-40 flex items-center gap-2"
+            >
+              <Eye size={14} /> Preview
+            </button>
+          )}
+
+          {step === 3 && (
+            <button
               onClick={handleCreateCampaign}
-              disabled={creating || !campaignName.trim()}
+              disabled={creating}
               className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-40 flex items-center gap-2"
             >
               {creating ? <><Loader2 size={14} className="animate-spin" /> Processando...</> : 'Criar Campanha'}
             </button>
           )}
 
-          {step === 3 && completed && (
+          {step === 4 && completed && (
             <button onClick={handleClose} className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700">
               Fechar
             </button>

@@ -58,7 +58,7 @@ describe('humanizer', () => {
       const text = 'Primeira frase aqui. Segunda frase aqui. Terceira frase aqui. Quarta frase que torna o texto muito longo para um único chunk. Quinta frase adicional para garantir que o texto exceda o limite de 300 caracteres e precise ser dividido em múltiplos chunks separados corretamente.';
       const chunks = chunkMessage(text, 150);
       expect(chunks.length).toBeGreaterThan(1);
-      chunks.forEach((c) => expect(c.length).toBeLessThanOrEqual(200)); // some tolerance for sentence-level split
+      chunks.forEach((c: string) => expect(c.length).toBeLessThanOrEqual(200)); // some tolerance for sentence-level split
     });
 
     it('handles messages with no sentence boundaries', () => {
@@ -75,7 +75,7 @@ describe('humanizer', () => {
     it('does not produce empty chunks', () => {
       const text = 'Primeira frase. Segunda frase. Terceira frase.';
       const chunks = chunkMessage(text, 20);
-      chunks.forEach((c) => expect(c.trim().length).toBeGreaterThan(0));
+      chunks.forEach((c: string) => expect(c.trim().length).toBeGreaterThan(0));
     });
   });
 
