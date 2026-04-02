@@ -1,12 +1,24 @@
 import * as XLSX from 'xlsx';
 import { normalizePhone } from '../whatsapp/normalize-phone';
+import type { PatientHistoryEntry } from '@/types';
 
-export interface PatientImportRow {
+/** Uma linha bruta da planilha (antes de agrupar) */
+interface RawPatientRow {
   name: string;
   category: string;
   dentist_name: string;
   phone: string;
   observations: string;
+}
+
+/** Registro final do paciente após agrupar múltiplas linhas pelo telefone */
+export interface PatientRecord {
+  name: string;
+  phone: string;
+  category: string;        // Procedimento da última ocorrência
+  dentist_name: string;    // Dentista da última ocorrência
+  observations: string;    // Observações da última ocorrência
+  history: PatientHistoryEntry[];  // Todos os procedimentos (ordem de aparição)
 }
 
 type RawRow = Record<string, unknown>;
@@ -22,8 +34,13 @@ function findColumn(row: RawRow, ...candidates: string[]): string {
   return '';
 }
 
-export function parsePatientRows(rows: RawRow[]): PatientImportRow[] {
-  const result: PatientImportRow[] = [];
+/**
+ * Parseia linhas brutas da planilha e retorna um registro por telefone.
+ * Pacientes com múltiplas linhas têm todos os procedimentos em `history`.
+ * Os campos `category`, `dentist_name` e `observations` refletem a última ocorrência.
+ */
+export function parsePatientRows(rows: RawRow[]): PatientRecord[] {
+  const rawRows: RawPatientRow[] = [];
 
   for (const row of rows) {
     const name = findColumn(row, 'Nome do Paciente', 'nome do paciente', 'nome');
@@ -37,17 +54,51 @@ export function parsePatientRows(rows: RawRow[]): PatientImportRow[] {
     const phone = normalizePhone(rawPhone);
     if (!phone) continue;
 
-    result.push({ name, category, dentist_name, phone, observations });
+    rawRows.push({ name, category, dentist_name, phone, observations });
+  }
+
+  // Agrupa por telefone — múltiplas linhas do mesmo paciente formam o histórico
+  const byPhone = new Map<string, RawPatientRow[]>();
+  for (const row of rawRows) {
+    const existing = byPhone.get(row.phone);
+    if (existing) {
+      existing.push(row);
+    } else {
+      byPhone.set(row.phone, [row]);
+    }
+  }
+
+  const result: PatientRecord[] = [];
+
+  for (const [phone, entries] of byPhone) {
+    const last = entries[entries.length - 1];
+
+    const history: PatientHistoryEntry[] = entries
+      .filter(e => e.category || e.observations)  // pula linhas sem dados úteis
+      .map(e => ({
+        category: e.category,
+        dentist_name: e.dentist_name,
+        observations: e.observations,
+      }));
+
+    result.push({
+      name: last.name,
+      phone,
+      category: last.category,
+      dentist_name: last.dentist_name,
+      observations: last.observations,
+      history,
+    });
   }
 
   return result;
 }
 
 /**
- * Parses an Excel file buffer and returns normalized patient rows.
- * Reads the first sheet.
+ * Parseia um buffer de arquivo Excel e retorna registros de pacientes agrupados por telefone.
+ * Lê a primeira planilha.
  */
-export function parseExcelBuffer(buffer: ArrayBuffer): PatientImportRow[] {
+export function parseExcelBuffer(buffer: ArrayBuffer): PatientRecord[] {
   const workbook = XLSX.read(buffer, { type: 'array' });
   const sheetName = workbook.SheetNames[0];
   if (!sheetName) return [];

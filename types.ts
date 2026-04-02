@@ -35,14 +35,25 @@ export interface User {
   tenantId?: string; // Multi-tenancy support
 }
 
+export interface PatientHistoryEntry {
+  category: string;
+  dentist_name: string;
+  observations: string;
+}
+
 export interface Patient {
   id: string;
   name: string;
   phone: string;
   email?: string;
-  history?: string[]; // Tags/Keywords
-  clinicalRecords?: ClinicalRecord[]; // Histórico detalhado com datas
+  category?: string;           // Último procedimento (do import)
+  dentist_name?: string;       // Último dentista (do import)
+  observations?: string;       // Última observação (do import)
+  history?: PatientHistoryEntry[]; // Todos os procedimentos importados
+  clinicalRecords?: ClinicalRecord[]; // Histórico clínico formal (prontuário)
   lastVisit?: string;
+  source?: string;
+  imported_at?: string;
 }
 
 export interface Opportunity {

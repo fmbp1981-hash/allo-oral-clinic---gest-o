@@ -44,6 +44,7 @@ import { NotificationsPopover } from './components/NotificationsPopover';
 import { ProfileModal } from './components/ProfileModal';
 import { ScheduleModal } from './components/ScheduleModal';
 import { ImportPatientsModal } from './components/ImportPatientsModal';
+import { PatientHistoryModal } from './components/PatientHistoryModal';
 import { Opportunity, OpportunityStatus, Patient, User, Notification } from './types';
 import { isAdmin } from './utils/permissions';
 
@@ -320,12 +321,22 @@ const DatabasePage = ({
   const [filterStatus, setFilterStatus] = useState<'all' | 'available' | 'reactivated'>('all');
   const [showImportModal, setShowImportModal] = useState(false);
   const [selectedPatientIds, setSelectedPatientIds] = useState<Set<string>>(new Set());
+  const [historyPatient, setHistoryPatient] = useState<Patient | null>(null);
 
   // Debounce search term to optimize performance
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
-  // Extrair todas as tags unicas para o filtro
-  const allTags = Array.from(new Set(patients.flatMap(p => Array.isArray(p.history) ? p.history : []))) as string[];
+  // Extrair categorias únicas para o filtro (usa category do paciente + entries do history)
+  const allTags = Array.from(new Set(
+    patients.flatMap(p => {
+      const tags: string[] = [];
+      if (p.category) tags.push(p.category);
+      if (Array.isArray(p.history)) {
+        p.history.forEach(h => { if (h.category) tags.push(h.category); });
+      }
+      return tags;
+    })
+  ));
 
   // Funcao auxiliar para checar status no pipeline
   const getPipelineStatus = (patientId: string): OpportunityStatus | null => {
@@ -338,14 +349,18 @@ const DatabasePage = ({
     return opportunities.find(o => o.patientId === patientId);
   };
 
-  // Filtragem otimizada com debounce - busca por nome, telefone E historico
+  // Filtragem otimizada com debounce - busca por nome, telefone, categoria e dentista
   const filteredPatients = patients.filter(p => {
     const searchLower = debouncedSearchTerm.toLowerCase();
     const matchesSearch = !debouncedSearchTerm ||
       p.name.toLowerCase().includes(searchLower) ||
       p.phone.includes(debouncedSearchTerm) ||
-      (Array.isArray(p.history) && p.history.some(tag => tag.toLowerCase().includes(searchLower)));
-    const matchesTag = filterTag === 'all' || (Array.isArray(p.history) && p.history.includes(filterTag));
+      (p.category && p.category.toLowerCase().includes(searchLower)) ||
+      (p.dentist_name && p.dentist_name.toLowerCase().includes(searchLower)) ||
+      (Array.isArray(p.history) && p.history.some(h => h.category?.toLowerCase().includes(searchLower)));
+    const matchesTag = filterTag === 'all' ||
+      p.category === filterTag ||
+      (Array.isArray(p.history) && p.history.some(h => h.category === filterTag));
     const pipelineStatus = getPipelineStatus(p.id);
     const matchesStatus = filterStatus === 'all' ||
       (filterStatus === 'available' && !pipelineStatus) ||
@@ -551,8 +566,8 @@ const DatabasePage = ({
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nome</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Telefone</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Historico / Tratamentos</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ultima Visita</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Último Procedimento</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Dentista</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Acao</th>
                 </tr>
@@ -578,17 +593,31 @@ const DatabasePage = ({
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{p.name}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{p.phone}</td>
-                      <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
-                        <div className="flex flex-wrap gap-1">
-                          {Array.isArray(p.history) && p.history.map(tag => (
-                            <span key={tag} className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-xs border border-gray-200 dark:border-gray-600 dark:text-gray-300">{tag}</span>
-                          ))}
-                          {!Array.isArray(p.history) && p.history && (
-                            <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-xs border border-gray-200 dark:border-gray-600 dark:text-gray-300">{String(p.history)}</span>
-                          )}
-                        </div>
+                      {/* Último procedimento */}
+                      <td className="px-6 py-4 text-sm">
+                        {p.category ? (
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-700">
+                              {p.category}
+                            </span>
+                            {Array.isArray(p.history) && p.history.length > 1 && (
+                              <button
+                                onClick={() => setHistoryPatient(p)}
+                                className="text-xs text-gray-400 hover:text-indigo-600 hover:underline transition-colors"
+                                title="Ver histórico completo"
+                              >
+                                +{p.history.length - 1} anterior{p.history.length - 1 !== 1 ? 'es' : ''}
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-400 italic">Sem procedimento</span>
+                        )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{p.lastVisit ? new Date(p.lastVisit).toLocaleDateString() : '-'}</td>
+                      {/* Dentista */}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        {p.dentist_name || <span className="text-xs text-gray-300 dark:text-gray-600">-</span>}
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         {pipelineStatus ? (
                           <div>
@@ -613,6 +642,14 @@ const DatabasePage = ({
                           </span>
                         ) : (
                           <div className="flex justify-end gap-1">
+                            <button
+                              onClick={() => setHistoryPatient(p)}
+                              className="inline-flex items-center px-2 py-1 bg-gray-50 text-gray-600 rounded-md hover:bg-gray-100 transition-colors text-xs font-medium border border-gray-200 dark:bg-gray-700 dark:text-gray-400 dark:border-gray-600"
+                              title="Ver histórico de procedimentos"
+                            >
+                              <Eye size={14} className="mr-1" />
+                              Hist.
+                            </button>
                             <button
                               onClick={() => onBulkMessage([p])}
                               className="inline-flex items-center px-3 py-1 bg-green-50 text-green-700 rounded-md hover:bg-green-100 transition-colors text-xs font-medium border border-green-100 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800 dark:hover:bg-green-900/40"
@@ -651,6 +688,12 @@ const DatabasePage = ({
         isOpen={showImportModal}
         onClose={() => setShowImportModal(false)}
         onSuccess={onRefresh}
+      />
+
+      <PatientHistoryModal
+        patient={historyPatient}
+        isOpen={historyPatient !== null}
+        onClose={() => setHistoryPatient(null)}
       />
     </div>
   );
