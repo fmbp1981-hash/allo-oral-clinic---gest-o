@@ -98,13 +98,17 @@ export function parsePatientRows(rows: RawRow[]): PatientRecord[] {
  * Parseia um buffer de arquivo Excel e retorna registros de pacientes agrupados por telefone.
  * Lê a primeira planilha.
  */
-export function parseExcelBuffer(buffer: ArrayBuffer): PatientRecord[] {
+export function parseExcelBuffer(buffer: ArrayBuffer): { records: PatientRecord[]; rawRowCount: number; skippedRows: number } {
   const workbook = XLSX.read(buffer, { type: 'array' });
   const sheetName = workbook.SheetNames[0];
-  if (!sheetName) return [];
+  if (!sheetName) return { records: [], rawRowCount: 0, skippedRows: 0 };
 
   const sheet = workbook.Sheets[sheetName];
   const rawRows: RawRow[] = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+  const rawRowCount = rawRows.length;
 
-  return parsePatientRows(rawRows);
+  const records = parsePatientRows(rawRows);
+  const skippedRows = rawRowCount - records.reduce((sum, r) => sum + Math.max(r.history.length, 1), 0);
+
+  return { records, rawRowCount, skippedRows };
 }

@@ -61,9 +61,13 @@ export const ImportPatientsModal: React.FC<ImportPatientsModalProps> = ({
 
       const importResult = await res.json() as {
         success?: boolean;
-        total?: number;
+        totalRows?: number;
+        uniquePatients?: number;
+        skippedRows?: number;
         inserted?: number;
         updated?: number;
+        // legacy fields (backwards compat)
+        total?: number;
         error?: string;
       };
 
@@ -72,11 +76,24 @@ export const ImportPatientsModal: React.FC<ImportPatientsModalProps> = ({
         return;
       }
 
+      const uniquePatients = importResult.uniquePatients ?? importResult.total ?? 0;
+      const totalRows = importResult.totalRows ?? uniquePatients;
+      const skipped = importResult.skippedRows ?? 0;
+      const inserted = importResult.inserted ?? 0;
+      const updated = importResult.updated ?? 0;
+
+      const details = [
+        `${totalRows} linhas lidas`,
+        `${uniquePatients} pacientes únicos`,
+        skipped > 0 ? `${skipped} linhas ignoradas (telefone inválido)` : null,
+        `${inserted} adicionados, ${updated} atualizados`,
+      ].filter(Boolean).join(' · ');
+
       const mapped = {
         success: true,
-        message: `Importação concluída: ${importResult.inserted ?? 0} adicionados, ${importResult.updated ?? 0} atualizados.`,
-        imported: importResult.inserted ?? 0,
-        total: importResult.total ?? 0,
+        message: `Importação concluída! ${details}.`,
+        imported: inserted,
+        total: uniquePatients,
       };
 
       setResult(mapped);

@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
   }
 
   const arrayBuffer = await (file as File).arrayBuffer();
-  const records: PatientRecord[] = parseExcelBuffer(arrayBuffer);
+  const { records, rawRowCount, skippedRows } = parseExcelBuffer(arrayBuffer);
 
   if (records.length === 0) {
     return NextResponse.json(
@@ -76,7 +76,9 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({
     success: true,
-    total: records.length,
+    totalRows: rawRowCount,
+    uniquePatients: records.length,
+    skippedRows,
     inserted,
     updated: records.length - inserted,
   });

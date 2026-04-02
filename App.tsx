@@ -593,26 +593,26 @@ const DatabasePage = ({
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{p.name}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{p.phone}</td>
-                      {/* Último procedimento */}
+                      {/* Último procedimento — clicável para abrir histórico */}
                       <td className="px-6 py-4 text-sm">
-                        {p.category ? (
-                          <div className="flex items-center gap-2">
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-700">
+                        <button
+                          onClick={() => setHistoryPatient(p)}
+                          className="flex items-center gap-2 group text-left"
+                          title="Ver histórico de procedimentos"
+                        >
+                          {p.category ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-700 group-hover:bg-indigo-200 transition-colors">
                               {p.category}
                             </span>
-                            {Array.isArray(p.history) && p.history.length > 1 && (
-                              <button
-                                onClick={() => setHistoryPatient(p)}
-                                className="text-xs text-gray-400 hover:text-indigo-600 hover:underline transition-colors"
-                                title="Ver histórico completo"
-                              >
-                                +{p.history.length - 1} anterior{p.history.length - 1 !== 1 ? 'es' : ''}
-                              </button>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-xs text-gray-400 italic">Sem procedimento</span>
-                        )}
+                          ) : (
+                            <span className="text-xs text-gray-400 italic group-hover:text-gray-600">Sem procedimento</span>
+                          )}
+                          {Array.isArray(p.history) && p.history.length > 0 && (
+                            <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 text-xs font-bold group-hover:bg-indigo-100 group-hover:text-indigo-600 transition-colors" title={`${p.history.length} procedimento${p.history.length !== 1 ? 's' : ''}`}>
+                              {p.history.length}
+                            </span>
+                          )}
+                        </button>
                       </td>
                       {/* Dentista */}
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
@@ -636,20 +636,20 @@ const DatabasePage = ({
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
                         {pipelineStatus ? (
-                          <span className="inline-flex items-center px-3 py-1 bg-gray-50 dark:bg-gray-700 text-gray-400 rounded-md text-xs font-medium border border-gray-200 dark:border-gray-600">
-                            <Eye size={14} className="mr-1.5" />
-                            No Pipeline
-                          </span>
-                        ) : (
                           <div className="flex justify-end gap-1">
                             <button
                               onClick={() => setHistoryPatient(p)}
                               className="inline-flex items-center px-2 py-1 bg-gray-50 text-gray-600 rounded-md hover:bg-gray-100 transition-colors text-xs font-medium border border-gray-200 dark:bg-gray-700 dark:text-gray-400 dark:border-gray-600"
                               title="Ver histórico de procedimentos"
                             >
-                              <Eye size={14} className="mr-1" />
-                              Hist.
+                              <Eye size={14} />
                             </button>
+                            <span className="inline-flex items-center px-3 py-1 bg-gray-50 dark:bg-gray-700 text-gray-400 rounded-md text-xs font-medium border border-gray-200 dark:border-gray-600">
+                              No Pipeline
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="flex justify-end gap-1">
                             <button
                               onClick={() => onBulkMessage([p])}
                               className="inline-flex items-center px-3 py-1 bg-green-50 text-green-700 rounded-md hover:bg-green-100 transition-colors text-xs font-medium border border-green-100 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800 dark:hover:bg-green-900/40"
