@@ -21,7 +21,8 @@ import {
   Send,
   Trash2,
   MessageCircle,
-  CalendarDays
+  CalendarDays,
+  FileText
 } from 'lucide-react';
 import { useToast } from './hooks/useToast';
 import { useConfirm } from './hooks/useConfirm';
@@ -54,6 +55,7 @@ import { CampaignWizard } from './components/CampaignWizard';
 import { CampaignHistory } from './components/CampaignHistory';
 import { AtendimentoPage } from './components/AtendimentoPage';
 import { AgendaPage } from './components/AgendaPage';
+import { TemplatesPage } from './components/TemplatesPage';
 import {
   getStoredOpportunities,
   getAllOpportunities,
@@ -701,7 +703,7 @@ const DatabasePage = ({
 
 // --- Main App Shell ---
 
-type Page = 'dashboard' | 'pipeline' | 'database' | 'campaigns' | 'atendimento' | 'agenda' | 'users';
+type Page = 'dashboard' | 'pipeline' | 'database' | 'campaigns' | 'atendimento' | 'agenda' | 'templates' | 'users';
 
 const AppContent = ({ user, setUser }: { user: User | null; setUser: (user: User | null) => void }) => {
   const toast = useToast();
@@ -1055,6 +1057,7 @@ const AppContent = ({ user, setUser }: { user: User | null; setUser: (user: User
           <NavItem id="campaigns" icon={Send} label="Campanhas" />
           <NavItem id="atendimento" icon={MessageCircle} label="Atendimento" />
           <NavItem id="agenda" icon={CalendarDays} label="Agenda" />
+          <NavItem id="templates" icon={FileText} label="Templates" />
 
           {/* Seção Admin - Apenas para administradores */}
           {isAdmin(user) && (
@@ -1184,6 +1187,11 @@ const AppContent = ({ user, setUser }: { user: User | null; setUser: (user: User
           {page === 'agenda' && (
             <div className="h-full overflow-hidden">
               <AgendaPage />
+            </div>
+          )}
+          {page === 'templates' && (
+            <div className="h-full overflow-y-auto">
+              <TemplatesPage />
             </div>
           )}
           {page === 'users' && isAdmin(user) && (

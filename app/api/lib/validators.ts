@@ -270,6 +270,12 @@ export const createTemplateSchema = z.object({
   type: z.string().trim().optional().default('custom'),
 });
 
+export const updateTemplateSchema = z.object({
+  name: trimmedString.optional(),
+  content: trimmedString.optional(),
+  type: z.string().trim().optional(),
+});
+
 // ─── Settings ──────────────────────────────────────────
 
 export const updateSettingsSchema = z.object({

@@ -10,7 +10,9 @@ import {
   XCircle,
   AlertCircle,
   ChevronDown,
-  Eye
+  Eye,
+  Save,
+  Check
 } from 'lucide-react';
 import { Opportunity, Patient } from '../types';
 
@@ -58,6 +60,13 @@ export const BulkMessageModal = ({
   const [results, setResults] = useState<SendResult[]>([]);
   const [error, setError] = useState<string | null>(null);
 
+  // Save-as-template mini-form state
+  const [showSaveForm, setShowSaveForm] = useState(false);
+  const [saveName, setSaveName] = useState('');
+  const [saveType, setSaveType] = useState('custom');
+  const [savingTemplate, setSavingTemplate] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
   useEffect(() => {
     if (isOpen) {
       // Mapear destinatários
@@ -71,6 +80,9 @@ export const BulkMessageModal = ({
       setStep('select');
       setResults([]);
       setError(null);
+      setShowSaveForm(false);
+      setSaveName('');
+      setSaveSuccess(false);
 
       // Buscar templates
       fetchTemplates();
@@ -196,6 +208,33 @@ Podemos agendar uma consulta?`,
   const handleSelectTemplate = (template: Template) => {
     setSelectedTemplate(template);
     setCustomMessage(template.content);
+    setShowSaveForm(false);
+    setSaveSuccess(false);
+  };
+
+  const handleSaveAsTemplate = async () => {
+    if (!saveName.trim() || !customMessage.trim()) return;
+    setSavingTemplate(true);
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch('/api/templates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ name: saveName.trim(), content: customMessage, type: saveType }),
+      });
+      if (!response.ok) throw new Error('Erro ao salvar');
+      const newTemplate: Template = { ...(await response.json()), type: 'custom' as const };
+      setTemplates(prev => [newTemplate, ...prev]);
+      setSelectedTemplate(newTemplate);
+      setShowSaveForm(false);
+      setSaveName('');
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch {
+      // silently ignore; user can retry
+    } finally {
+      setSavingTemplate(false);
+    }
   };
 
   const getPreviewMessage = (recipient: Recipient): string => {
@@ -434,14 +473,77 @@ Podemos agendar uma consulta?`,
                   </label>
                   <textarea
                     value={customMessage}
-                    onChange={(e) => setCustomMessage(e.target.value)}
+                    onChange={(e) => { setCustomMessage(e.target.value); setSaveSuccess(false); }}
                     rows={6}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-green-500 focus:border-green-500"
                     placeholder="Digite sua mensagem aqui..."
                   />
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                    Variáveis disponíveis: {'{nome}'}, {'{telefone}'}, {'{data}'}, {'{hora}'}
-                  </p>
+                  <div className="flex items-center justify-between mt-2">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Variáveis disponíveis: {'{nome}'}, {'{telefone}'}, {'{data}'}, {'{hora}'}
+                    </p>
+
+                    {/* Save as template */}
+                    {customMessage.trim() && (
+                      saveSuccess ? (
+                        <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400 font-medium">
+                          <Check size={13} />
+                          Template salvo!
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setShowSaveForm(v => !v)}
+                          className="flex items-center gap-1.5 text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-medium"
+                        >
+                          <Save size={13} />
+                          Salvar como template
+                        </button>
+                      )
+                    )}
+                  </div>
+
+                  {/* Save-as-template inline form */}
+                  {showSaveForm && customMessage.trim() && (
+                    <div className="mt-3 p-3 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg space-y-2">
+                      <p className="text-xs font-medium text-indigo-700 dark:text-indigo-400">Salvar mensagem como template reutilizável</p>
+                      <div className="flex gap-2">
+                        <input
+                          value={saveName}
+                          onChange={e => setSaveName(e.target.value)}
+                          placeholder="Nome do template"
+                          className="flex-1 px-2 py-1.5 text-sm border border-indigo-300 dark:border-indigo-700 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-indigo-500 focus:border-indigo-500"
+                        />
+                        <select
+                          value={saveType}
+                          onChange={e => setSaveType(e.target.value)}
+                          className="px-2 py-1.5 text-sm border border-indigo-300 dark:border-indigo-700 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-indigo-500"
+                        >
+                          <option value="custom">Personalizado</option>
+                          <option value="reactivation">Reativação</option>
+                          <option value="confirmation">Confirmação</option>
+                          <option value="reminder">Lembrete</option>
+                          <option value="welcome">Boas-vindas</option>
+                        </select>
+                        <button
+                          type="button"
+                          onClick={handleSaveAsTemplate}
+                          disabled={!saveName.trim() || savingTemplate}
+                          className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 rounded hover:bg-indigo-700 disabled:opacity-50"
+                        >
+                          {savingTemplate ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+                          Salvar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowSaveForm(false)}
+                          className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

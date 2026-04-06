@@ -674,3 +674,44 @@ export const createScheduleBlock = async (block: {
   });
   return data.block;
 };
+
+// --- Message Template Functions ---
+
+export interface MessageTemplate {
+  id: string;
+  name: string;
+  content: string;
+  type: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export const getMessageTemplates = async (): Promise<MessageTemplate[]> => {
+  return await fetchWithAuth('/templates');
+};
+
+export const createMessageTemplate = async (template: {
+  name: string;
+  content: string;
+  type?: string;
+}): Promise<MessageTemplate> => {
+  return await fetchWithAuth('/templates', {
+    method: 'POST',
+    body: JSON.stringify(template),
+  });
+};
+
+export const updateMessageTemplate = async (
+  id: string,
+  updates: { name?: string; content?: string; type?: string }
+): Promise<MessageTemplate> => {
+  return await fetchWithAuth(`/templates/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(updates),
+  });
+};
+
+export const deleteMessageTemplate = async (id: string): Promise<void> => {
+  await fetchWithAuth(`/templates/${id}`, { method: 'DELETE' });
+};
+
