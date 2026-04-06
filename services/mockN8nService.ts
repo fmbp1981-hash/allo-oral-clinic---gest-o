@@ -6,7 +6,7 @@ const MOCK_PATIENTS_DB: Patient[] = [
     id: 'p1', 
     name: 'Ana Silva', 
     phone: '5511999999999', 
-    history: ['implante', 'protocolo', 'manutenção'], 
+    history: [{ category: 'Implante', dentist_name: '', observations: 'instalação' }, { category: 'Prótese', dentist_name: '', observations: 'protocolo' }, { category: 'Manutenção do Aparelho', dentist_name: '', observations: 'manutenção' }], 
     lastVisit: '2023-12-01',
     clinicalRecords: [
       { date: '2023-12-01', description: 'Manutenção protocolo inferior e limpeza', type: 'procedure' },
@@ -18,7 +18,7 @@ const MOCK_PATIENTS_DB: Patient[] = [
     id: 'p2', 
     name: 'Carlos Oliveira', 
     phone: '5511988888888', 
-    history: ['ortodontia', 'aparelho fixo', 'manutenção'], 
+    history: [{ category: 'Aparelho Ortodôntico Fixo', dentist_name: '', observations: 'ortodontia' }, { category: 'Manutenção do Aparelho', dentist_name: '', observations: 'manutenção' }], 
     lastVisit: '2024-01-15',
     clinicalRecords: [
       { date: '2024-01-15', description: 'Manutenção ortodôntica - Troca de fio superior', type: 'procedure' },
@@ -30,7 +30,7 @@ const MOCK_PATIENTS_DB: Patient[] = [
     id: 'p3', 
     name: 'Mariana Santos', 
     phone: '5511977777777', 
-    history: ['estética', 'lentes de contato', 'clareamento'], 
+    history: [{ category: 'Faceta', dentist_name: '', observations: 'lentes de contato' }, { category: 'Clareamento', dentist_name: '', observations: 'clareamento' }], 
     lastVisit: '2024-02-20',
     clinicalRecords: [
       { date: '2024-02-20', description: 'Sessão de clareamento de consultório (3ª sessão)', type: 'procedure' },
@@ -42,7 +42,7 @@ const MOCK_PATIENTS_DB: Patient[] = [
     id: 'p4', 
     name: 'Roberto Costa', 
     phone: '5511966666666', 
-    history: ['periodontia', 'limpeza', 'gengivite'], 
+    history: [{ category: 'Limpeza de Tártaro', dentist_name: '', observations: 'periodontia/gengivite' }], 
     lastVisit: '2023-11-10',
     clinicalRecords: [
       { date: '2023-11-10', description: 'Raspagem supra e subgengival quadrante 1 e 2', type: 'procedure' },
@@ -53,7 +53,7 @@ const MOCK_PATIENTS_DB: Patient[] = [
     id: 'p5', 
     name: 'Fernanda Lima', 
     phone: '5511955555555', 
-    history: ['odontopediatria', 'prevenção', 'flúor'], 
+    history: [{ category: 'Profilaxia', dentist_name: '', observations: 'odontopediatria / flúor' }], 
     lastVisit: '2024-03-01',
     clinicalRecords: [
       { date: '2024-03-01', description: 'Aplicação tópica de flúor e orientação de higiene', type: 'procedure' },
@@ -64,7 +64,7 @@ const MOCK_PATIENTS_DB: Patient[] = [
     id: 'p6', 
     name: 'Paulo Souza', 
     phone: '5511944444444', 
-    history: ['endodontia', 'canal', 'dor de dente'], 
+    history: [{ category: 'Endodontia', dentist_name: '', observations: 'canal dente 26' }], 
     lastVisit: '2023-10-05',
     clinicalRecords: [
       { date: '2023-10-05', description: 'Obturação canal dente 26', type: 'procedure' },
@@ -76,7 +76,7 @@ const MOCK_PATIENTS_DB: Patient[] = [
     id: 'p7', 
     name: 'Lucia Mendes', 
     phone: '5511933333333', 
-    history: ['estética', 'harmonização', 'botox'], 
+    history: [{ category: 'Consulta', dentist_name: '', observations: 'harmonização / botox' }], 
     lastVisit: '2024-01-25',
     clinicalRecords: [
       { date: '2024-01-25', description: 'Aplicação Toxina Botulínica (Terço superior)', type: 'procedure' },
@@ -87,7 +87,7 @@ const MOCK_PATIENTS_DB: Patient[] = [
     id: 'p8', 
     name: 'Ricardo Alves', 
     phone: '5511922222222', 
-    history: ['cirurgia', 'siso', 'extração'], 
+    history: [{ category: 'Cirurgia', dentist_name: '', observations: 'extração sisos 38 e 48' }], 
     lastVisit: '2024-02-10',
     clinicalRecords: [
       { date: '2024-02-10', description: 'Remoção de sutura', type: 'consultation' },
@@ -347,7 +347,10 @@ export const searchPatientsByKeyword = async (keyword: string, limit: number = 1
     setTimeout(() => {
       const normalizedKeyword = keyword.toLowerCase().trim();
       const matchingPatients = MOCK_PATIENTS_DB.filter(p => 
-        p.history?.some(h => h.includes(normalizedKeyword))
+        p.history?.some(h => 
+          h.category?.toLowerCase().includes(normalizedKeyword) ||
+          h.observations?.toLowerCase().includes(normalizedKeyword)
+        )
       );
       const limitedPatients = matchingPatients.slice(0, limit);
       const newOpps: Opportunity[] = limitedPatients.map(p => ({
