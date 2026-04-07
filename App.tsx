@@ -575,8 +575,8 @@ const DatabasePage = ({
         <SkeletonTable rows={8} />
       ) : (
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
-          <div style={{ overflowX: 'auto' }}>
-          <table style={{ minWidth: '1000px', width: '100%' }} className="divide-y divide-gray-200">
+          <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          <table style={{ minWidth: '1400px' }} className="w-full divide-y divide-gray-200">
               <thead className="bg-gray-50 dark:bg-gray-900">
                 <tr>
                   <th className="px-4 py-3 text-left">
@@ -1166,7 +1166,7 @@ const AppContent = ({ user, setUser }: { user: User | null; setUser: (user: User
           </div>
         </header>
 
-        <main className="flex-1 p-4 sm:p-8 overflow-y-auto max-w-7xl mx-auto w-full bg-gray-50 dark:bg-gray-900">
+        <main className="flex-1 p-4 sm:p-8 max-w-7xl mx-auto w-full bg-gray-50 dark:bg-gray-900">
           {page === 'dashboard' && (
             <div className="h-full overflow-y-auto">
               <DashboardPage
