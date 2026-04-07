@@ -1164,7 +1164,7 @@ const AppContent = ({ user, setUser }: { user: User | null; setUser: (user: User
           </div>
         </header>
 
-        <main className="flex-1 p-4 sm:p-8 overflow-hidden max-w-7xl mx-auto w-full bg-gray-50 dark:bg-gray-900">
+        <main className="flex-1 p-4 sm:p-8 overflow-y-auto max-w-7xl mx-auto w-full bg-gray-50 dark:bg-gray-900">
           {page === 'dashboard' && (
             <div className="h-full overflow-y-auto">
               <DashboardPage
@@ -1184,7 +1184,7 @@ const AppContent = ({ user, setUser }: { user: User | null; setUser: (user: User
             />
           )}
           {page === 'database' && (
-            <div className="h-full overflow-y-auto">
+            <div className="h-full">
               <DatabasePage
                 patients={databasePatients}
                 loading={databaseLoading}
