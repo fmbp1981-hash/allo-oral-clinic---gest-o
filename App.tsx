@@ -1132,7 +1132,7 @@ const AppContent = ({ user, setUser }: { user: User | null; setUser: (user: User
       </aside >
 
       {/* Main Content */}
-      < div className="flex-1 flex flex-col lg:pl-64 transition-all duration-300 overflow-hidden h-screen" >
+      < div className="flex-1 flex flex-col lg:pl-64 transition-all duration-300 overflow-y-auto h-screen" >
         <header className="h-16 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 sticky top-0 z-10 px-4 sm:px-8 flex items-center justify-between shadow-sm shrink-0 transition-colors">
           <button onClick={() => setSidebarOpen(true)} className="lg:hidden text-gray-500 dark:text-gray-400">
             <Menu size={24} />
