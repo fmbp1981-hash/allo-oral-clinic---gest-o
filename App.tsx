@@ -551,9 +551,8 @@ const DatabasePage = ({
       {loading ? (
         <SkeletonTable rows={8} />
       ) : (
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-x-auto">
+          <table className="min-w-[1000px] w-full divide-y divide-gray-200">
               <thead className="bg-gray-50 dark:bg-gray-900">
                 <tr>
                   <th className="px-4 py-3 text-left">
@@ -682,7 +681,6 @@ const DatabasePage = ({
                 )}
               </tbody>
             </table>
-          </div>
         </div>
       )}
 
