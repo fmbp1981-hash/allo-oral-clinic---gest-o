@@ -9,7 +9,7 @@ import { parseBody, updateTemplateSchema } from '../../lib/validators';
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const auth = validateAuthHeader(request);
@@ -18,7 +18,7 @@ export async function PATCH(
     }
 
     const { userId } = auth.data;
-    const { id } = params;
+    const { id } = await params;
 
     const parsed = await parseBody(request, updateTemplateSchema);
     if (parsed.error) return parsed.error;
@@ -64,7 +64,7 @@ export async function PATCH(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const auth = validateAuthHeader(request);
@@ -73,7 +73,7 @@ export async function DELETE(
     }
 
     const { userId } = auth.data;
-    const { id } = params;
+    const { id } = await params;
 
     const supabase = getSupabaseClient();
 
