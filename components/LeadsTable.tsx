@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Opportunity, OpportunityStatus } from '../types';
 import { StatusBadge } from './StatusBadge';
-import { MessageCircle, CheckCircle, XCircle, MoreHorizontal, Calendar, Loader2, Eye, FileText } from 'lucide-react';
+import { MessageCircle, CheckCircle, XCircle, MoreHorizontal, Calendar, Loader2, Eye, FileText, Search, Filter, X } from 'lucide-react';
 import { sendMessageToPatient } from '../services/apiService';
 
 interface PatientsTableProps {
@@ -22,10 +22,42 @@ export const PatientsTable: React.FC<PatientsTableProps> = ({
   // Estado para controlar qual linha está enviando mensagem
   const [sendingId, setSendingId] = useState<string | null>(null);
 
+  // Estados dos filtros
+  const [searchName, setSearchName] = useState('');
+  const [filterTag, setFilterTag] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+
+  const statusLabels: Record<string, string> = {
+    [OpportunityStatus.NEW]: 'Novo',
+    [OpportunityStatus.SENT]: 'Contatado',
+    [OpportunityStatus.RESPONDED]: 'Respondido',
+    [OpportunityStatus.SCHEDULED]: 'Agendado',
+    [OpportunityStatus.ARCHIVED]: 'Arquivado',
+  };
+
+  // Tags únicas extraídas dos dados
+  const uniqueTags = useMemo(() => {
+    const tags = new Set(items.map(i => i.keywordFound).filter(Boolean));
+    return Array.from(tags).sort();
+  }, [items]);
+
+  // Filtragem
+  const filteredItems = useMemo(() => {
+    return items.filter(opp => {
+      if (searchName && !opp.name.toLowerCase().includes(searchName.toLowerCase()) && !opp.phone.includes(searchName)) return false;
+      if (filterTag && opp.keywordFound !== filterTag) return false;
+      if (filterStatus && opp.status !== filterStatus) return false;
+      return true;
+    });
+  }, [items, searchName, filterTag, filterStatus]);
+
+  const hasActiveFilters = searchName || filterTag || filterStatus;
+  const clearFilters = () => { setSearchName(''); setFilterTag(''); setFilterStatus(''); };
+
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!onSelectionChange) return;
     if (e.target.checked) {
-      onSelectionChange(items.map(i => i.id));
+      onSelectionChange(filteredItems.map(i => i.id));
     } else {
       onSelectionChange([]);
     }
@@ -42,8 +74,8 @@ export const PatientsTable: React.FC<PatientsTableProps> = ({
     }
   };
 
-  const allSelected = items.length > 0 && selectedIds.length === items.length;
-  const isIndeterminate = selectedIds.length > 0 && selectedIds.length < items.length;
+  const allSelected = filteredItems.length > 0 && selectedIds.length === filteredItems.length;
+  const isIndeterminate = selectedIds.length > 0 && selectedIds.length < filteredItems.length;
 
   const handleActionClick = async (e: React.MouseEvent, opp: Opportunity) => {
     e.stopPropagation();
@@ -76,8 +108,65 @@ export const PatientsTable: React.FC<PatientsTableProps> = ({
   }
 
   return (
-    <div className="overflow-hidden bg-white border border-gray-200 rounded-xl shadow-sm">
-      <table className="min-w-full divide-y divide-gray-200">
+    <div className="bg-white border border-gray-200 rounded-xl shadow-sm">
+      {/* Barra de Filtros */}
+      <div className="flex flex-wrap items-center gap-3 px-4 py-3 border-b border-gray-100 bg-gray-50/50 rounded-t-xl">
+        <Filter size={16} className="text-gray-400 flex-shrink-0" />
+
+        {/* Busca por nome/telefone */}
+        <div className="relative flex-1 min-w-[180px] max-w-xs">
+          <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Buscar nome ou telefone..."
+            value={searchName}
+            onChange={e => setSearchName(e.target.value)}
+            className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white"
+          />
+        </div>
+
+        {/* Filtro por Tag/Motivo */}
+        <select
+          value={filterTag}
+          onChange={e => setFilterTag(e.target.value)}
+          className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-700 min-w-[140px]"
+        >
+          <option value="">Todos os motivos</option>
+          {uniqueTags.map(tag => (
+            <option key={tag} value={tag}>{tag}</option>
+          ))}
+        </select>
+
+        {/* Filtro por Status */}
+        <select
+          value={filterStatus}
+          onChange={e => setFilterStatus(e.target.value)}
+          className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-700 min-w-[130px]"
+        >
+          <option value="">Todos os status</option>
+          {Object.entries(statusLabels).map(([val, label]) => (
+            <option key={val} value={val}>{label}</option>
+          ))}
+        </select>
+
+        {/* Limpar filtros + contador */}
+        {hasActiveFilters && (
+          <button
+            onClick={clearFilters}
+            className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 font-medium transition-colors"
+          >
+            <X size={14} /> Limpar filtros
+          </button>
+        )}
+
+        <span className="ml-auto text-xs text-gray-400">
+          {filteredItems.length} de {items.length} pacientes
+        </span>
+      </div>
+
+      {/* Tabela */}
+      <div className="overflow-x-auto">
+      <table className="min-w-[900px] w-full divide-y divide-gray-200">
         <thead className="bg-gray-50/50">
           <tr>
             <th className="px-6 py-3 w-4">
@@ -101,7 +190,13 @@ export const PatientsTable: React.FC<PatientsTableProps> = ({
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-100">
-          {items.map((opp) => (
+          {filteredItems.length === 0 ? (
+            <tr>
+              <td colSpan={7} className="px-6 py-10 text-center text-sm text-gray-400">
+                Nenhum paciente encontrado com os filtros aplicados.
+              </td>
+            </tr>
+          ) : filteredItems.map((opp) => (
             <tr key={opp.id} className={`hover:bg-gray-50/80 transition-colors group cursor-pointer ${selectedIds.includes(opp.id) ? 'bg-indigo-50/30' : ''}`} onClick={() => onViewDetails(opp)}>
               <td className="px-6 py-4 w-4">
                 <input
@@ -216,6 +311,7 @@ export const PatientsTable: React.FC<PatientsTableProps> = ({
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 };
