@@ -574,8 +574,9 @@ const DatabasePage = ({
       {loading ? (
         <SkeletonTable rows={8} />
       ) : (
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-x-auto">
-          <table className="min-w-[1000px] w-full divide-y divide-gray-200">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+          <div style={{ overflowX: 'auto' }}>
+          <table style={{ minWidth: '1000px', width: '100%' }} className="divide-y divide-gray-200">
               <thead className="bg-gray-50 dark:bg-gray-900">
                 <tr>
                   <th className="px-4 py-3 text-left">
@@ -707,6 +708,7 @@ const DatabasePage = ({
                 )}
               </tbody>
             </table>
+          </div>
         </div>
       )}
 
@@ -1184,7 +1186,6 @@ const AppContent = ({ user, setUser }: { user: User | null; setUser: (user: User
             />
           )}
           {page === 'database' && (
-            <div className="h-full">
               <DatabasePage
                 patients={databasePatients}
                 loading={databaseLoading}
@@ -1196,7 +1197,6 @@ const AppContent = ({ user, setUser }: { user: User | null; setUser: (user: User
                 onDeleteAll={handleDeleteAllPatients}
                 user={user}
               />
-            </div>
           )}
           {page === 'campaigns' && (
             <div className="h-full overflow-y-auto p-6">
