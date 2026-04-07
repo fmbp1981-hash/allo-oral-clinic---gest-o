@@ -340,6 +340,29 @@ const DatabasePage = ({
     })
   ));
 
+  // Paleta de cores para tags de procedimentos
+  const tagColorPalette = [
+    { bg: 'bg-indigo-100 dark:bg-indigo-900/40', text: 'text-indigo-700 dark:text-indigo-300', border: 'border-indigo-200 dark:border-indigo-700', hover: 'group-hover:bg-indigo-200' },
+    { bg: 'bg-emerald-100 dark:bg-emerald-900/40', text: 'text-emerald-700 dark:text-emerald-300', border: 'border-emerald-200 dark:border-emerald-700', hover: 'group-hover:bg-emerald-200' },
+    { bg: 'bg-amber-100 dark:bg-amber-900/40', text: 'text-amber-700 dark:text-amber-300', border: 'border-amber-200 dark:border-amber-700', hover: 'group-hover:bg-amber-200' },
+    { bg: 'bg-rose-100 dark:bg-rose-900/40', text: 'text-rose-700 dark:text-rose-300', border: 'border-rose-200 dark:border-rose-700', hover: 'group-hover:bg-rose-200' },
+    { bg: 'bg-cyan-100 dark:bg-cyan-900/40', text: 'text-cyan-700 dark:text-cyan-300', border: 'border-cyan-200 dark:border-cyan-700', hover: 'group-hover:bg-cyan-200' },
+    { bg: 'bg-violet-100 dark:bg-violet-900/40', text: 'text-violet-700 dark:text-violet-300', border: 'border-violet-200 dark:border-violet-700', hover: 'group-hover:bg-violet-200' },
+    { bg: 'bg-orange-100 dark:bg-orange-900/40', text: 'text-orange-700 dark:text-orange-300', border: 'border-orange-200 dark:border-orange-700', hover: 'group-hover:bg-orange-200' },
+    { bg: 'bg-teal-100 dark:bg-teal-900/40', text: 'text-teal-700 dark:text-teal-300', border: 'border-teal-200 dark:border-teal-700', hover: 'group-hover:bg-teal-200' },
+    { bg: 'bg-pink-100 dark:bg-pink-900/40', text: 'text-pink-700 dark:text-pink-300', border: 'border-pink-200 dark:border-pink-700', hover: 'group-hover:bg-pink-200' },
+    { bg: 'bg-lime-100 dark:bg-lime-900/40', text: 'text-lime-700 dark:text-lime-300', border: 'border-lime-200 dark:border-lime-700', hover: 'group-hover:bg-lime-200' },
+    { bg: 'bg-sky-100 dark:bg-sky-900/40', text: 'text-sky-700 dark:text-sky-300', border: 'border-sky-200 dark:border-sky-700', hover: 'group-hover:bg-sky-200' },
+    { bg: 'bg-fuchsia-100 dark:bg-fuchsia-900/40', text: 'text-fuchsia-700 dark:text-fuchsia-300', border: 'border-fuchsia-200 dark:border-fuchsia-700', hover: 'group-hover:bg-fuchsia-200' },
+  ];
+
+  const tagColorMap = new Map<string, typeof tagColorPalette[0]>();
+  allTags.forEach((tag, idx) => {
+    tagColorMap.set(tag.toLowerCase(), tagColorPalette[idx % tagColorPalette.length]);
+  });
+
+  const getTagColor = (tag: string) => tagColorMap.get(tag.toLowerCase()) || tagColorPalette[0];
+
   // Funcao auxiliar para checar status no pipeline
   const getPipelineStatus = (patientId: string): OpportunityStatus | null => {
     const opp = opportunities.find(o => o.patientId === patientId);
@@ -601,11 +624,14 @@ const DatabasePage = ({
                           className="flex items-center gap-2 group text-left"
                           title="Ver histórico de procedimentos"
                         >
-                          {p.category ? (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-700 group-hover:bg-indigo-200 transition-colors">
-                              {p.category}
-                            </span>
-                          ) : (
+                          {p.category ? (() => {
+                            const c = getTagColor(p.category);
+                            return (
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${c.bg} ${c.text} border ${c.border} ${c.hover} transition-colors`}>
+                                {p.category}
+                              </span>
+                            );
+                          })() : (
                             <span className="text-xs text-gray-400 italic group-hover:text-gray-600">Sem procedimento</span>
                           )}
                           {Array.isArray(p.history) && p.history.length > 0 && (
